@@ -63,18 +63,8 @@
       const data = await fetchCategories(screen.event_id);
       slide.innerHTML = renderPricesSlide(screen, data);
     } else if (screen.type === 'qrcode') {
-      slide.innerHTML = renderQRSlide(screen);
+      slide.innerHTML = await renderQRSlide(screen);
       container.appendChild(slide);
-      const qrDiv = document.getElementById('qr-code-render');
-      if (qrDiv && screen.qr_url) {
-        new QRCode(qrDiv, {
-          text: screen.qr_url,
-          width: 280,
-          height: 280,
-          colorDark: '#000000',
-          colorLight: '#ffffff',
-        });
-      }
       return;
     } else if (screen.type === 'sponsor') {
       slide.innerHTML = renderSponsorSlide(screen);
@@ -143,11 +133,21 @@
       </div>`;
   }
 
-  function renderQRSlide(screen) {
+  async function renderQRSlide(screen) {
+    let qrImg = '';
+    if (screen.qr_url) {
+      try {
+        const r = await fetch(`/api/qrcode?url=${encodeURIComponent(screen.qr_url)}`);
+        if (r.ok) {
+          const { qr } = await r.json();
+          qrImg = `<img src="${qr}" class="qr-image" alt="QR Code" />`;
+        }
+      } catch { /* show empty container on error */ }
+    }
     return `
       <div class="qr-content">
         <div class="qr-text">${screen.text_content || 'Jetzt buchen'}</div>
-        <div id="qr-code-render" class="qr-code-container"></div>
+        <div class="qr-code-container">${qrImg}</div>
         ${screen.qr_url ? `<div class="qr-url">${screen.qr_url}</div>` : ''}
       </div>`;
   }
@@ -164,10 +164,11 @@
   }
 
   function formatPrice(amount) {
+    const currency = SETTINGS.currency || 'CHF';
     if (typeof amount === 'number') {
-      return (amount / 100).toFixed(2) + ' CHF';
+      return (amount / 100).toFixed(2) + ' ' + currency;
     }
-    return amount + ' CHF';
+    return amount + ' ' + currency;
   }
 
   function startProgress(duration) {

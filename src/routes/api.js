@@ -4,6 +4,7 @@ const pool = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { getEvent, getEventCategories } = require('../eventfrog');
 const QRCode = require('qrcode');
 
@@ -13,7 +14,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+    cb(null, `${Date.now()}-${crypto.randomBytes(16).toString('hex')}${ext}`);
   },
 });
 const upload = multer({
@@ -40,8 +41,8 @@ router.get('/settings', async (req, res) => {
 
 router.post('/settings', async (req, res) => {
   try {
-    const { api_key, event_id, show_title } = req.body;
-    const updates = { api_key, event_id, show_title };
+    const { api_key, event_id, show_title, currency } = req.body;
+    const updates = { api_key, event_id, show_title, currency };
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         await pool.query(

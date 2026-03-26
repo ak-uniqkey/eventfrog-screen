@@ -17,6 +17,7 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
     api_key: document.getElementById('api_key').value,
     event_id: document.getElementById('event_id').value,
     show_title: document.getElementById('show_title').value,
+    currency: document.getElementById('currency').value,
   };
   try {
     const r = await fetch('/api/settings', {

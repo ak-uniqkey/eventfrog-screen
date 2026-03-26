@@ -27,5 +27,6 @@ CREATE TABLE IF NOT EXISTS screens (
 INSERT INTO settings (key, value) VALUES
   ('api_key', ''),
   ('event_id', ''),
-  ('show_title', 'Event Information Screen')
+  ('show_title', 'Event Information Screen'),
+  ('currency', 'CHF')
 ON CONFLICT (key) DO NOTHING;

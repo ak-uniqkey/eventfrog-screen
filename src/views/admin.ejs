@@ -38,6 +38,10 @@
               <label>Show Title</label>
               <input type="text" id="show_title" name="show_title" value="<%= settings.show_title || 'Event Information Screen' %>" placeholder="Display title" />
             </div>
+            <div class="form-group">
+              <label>Currency</label>
+              <input type="text" id="currency" name="currency" value="<%= settings.currency || 'CHF' %>" placeholder="e.g. CHF, EUR, USD" maxlength="5" />
+            </div>
           </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">💾 Save Settings</button>
