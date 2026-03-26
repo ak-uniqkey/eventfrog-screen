@@ -143,8 +143,17 @@ async function editScreen(id) {
 }
 
 // ---- Delete Screen ----
-async function deleteScreen(id, name) {
-  if (!confirm(`Delete screen "${name}"?`)) return;
+async function deleteScreen(btnOrId, name) {
+  // Support both (element) and legacy (id, name) call signatures
+  let id, screenName;
+  if (typeof btnOrId === 'object' && btnOrId !== null) {
+    id = parseInt(btnOrId.dataset.id);
+    screenName = btnOrId.dataset.name;
+  } else {
+    id = btnOrId;
+    screenName = name;
+  }
+  if (!confirm(`Delete screen "${screenName}"?`)) return;
   try {
     const r = await fetch(`/api/screens/${id}`, { method: 'DELETE' });
     if (!r.ok) throw new Error((await r.json()).error);
@@ -183,7 +192,7 @@ async function reloadScreens() {
         </td>
         <td class="actions">
           <button class="btn btn-sm btn-secondary" onclick="editScreen(${s.id})">✏️ Edit</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteScreen(${s.id}, '${escAttr(s.name)}')">🗑</button>
+          <button class="btn btn-sm btn-danger" data-id="${s.id}" data-name="${escHtml(s.name)}" onclick="deleteScreen(this)">🗑</button>
         </td>
       </tr>`).join('');
 

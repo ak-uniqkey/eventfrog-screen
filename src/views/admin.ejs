@@ -85,7 +85,7 @@
                       </td>
                       <td class="actions">
                         <button class="btn btn-sm btn-secondary" onclick="editScreen(<%= screen.id %>)">✏️ Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteScreen(<%= screen.id %>, '<%= screen.name.replace(/'/g, "\\'") %>')">🗑</button>
+                        <button class="btn btn-sm btn-danger" data-id="<%= screen.id %>" data-name="<%= screen.name.replace(/"/g, '&quot;') %>" onclick="deleteScreen(this)">🗑</button>
                       </td>
                     </tr>
                   <% }) %>

@@ -119,7 +119,7 @@ router.put('/screens/:id', upload.single('image'), async (req, res) => {
         text_color=$9, image_path=$10, event_id=$11, qr_url=$12,
         updated_at=NOW()
        WHERE id=$13 RETURNING *`,
-      [name || cur.name, type || cur.type, parseInt(sort_order) !== undefined ? parseInt(sort_order) : cur.sort_order,
+      [name || cur.name, type || cur.type, sort_order !== undefined ? parseInt(sort_order) : cur.sort_order,
        parseInt(duration) || cur.duration, active !== undefined ? active !== 'false' : cur.active,
        background_color || cur.background_color, background_image !== undefined ? background_image : cur.background_image,
        text_content !== undefined ? text_content : cur.text_content,
