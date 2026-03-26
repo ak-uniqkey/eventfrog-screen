@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin – EventFrog Screen</title>
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <span class="nav-icon">🎪</span>
+      <span>EventFrog Screen</span>
+    </div>
+    <div class="nav-links">
+      <a href="/" target="_blank" class="btn btn-outline">👁 View Slideshow</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <!-- Settings Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2>⚙️ General Settings</h2>
+      </div>
+      <div class="card-body">
+        <form id="settings-form">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>API Key</label>
+              <input type="password" id="api_key" name="api_key" value="<%= settings.api_key || '' %>" placeholder="EventFrog API Key" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label>Event ID</label>
+              <input type="text" id="event_id" name="event_id" value="<%= settings.event_id || '' %>" placeholder="EventFrog Event ID" />
+            </div>
+            <div class="form-group">
+              <label>Show Title</label>
+              <input type="text" id="show_title" name="show_title" value="<%= settings.show_title || 'Event Information Screen' %>" placeholder="Display title" />
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Screens Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2>📺 Screens</h2>
+        <button class="btn btn-primary" onclick="openModal()">+ Add Screen</button>
+      </div>
+      <div class="card-body">
+        <div id="screens-list">
+          <% if (screens.length === 0) { %>
+            <div class="empty-state">
+              <p>No screens configured yet.</p>
+              <button class="btn btn-primary" onclick="openModal()">Add your first screen</button>
+            </div>
+          <% } else { %>
+            <div class="screens-table-wrap">
+              <table class="screens-table">
+                <thead>
+                  <tr>
+                    <th>⠿</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="screens-tbody">
+                  <% screens.forEach(screen => { %>
+                    <tr data-id="<%= screen.id %>">
+                      <td class="drag-handle">⠿</td>
+                      <td class="screen-name"><%= screen.name %></td>
+                      <td><span class="badge badge-<%= screen.type %>"><%= screen.type %></span></td>
+                      <td><%= screen.duration %>s</td>
+                      <td>
+                        <span class="status-dot <%= screen.active ? 'active' : 'inactive' %>"></span>
+                        <%= screen.active ? 'Active' : 'Inactive' %>
+                      </td>
+                      <td class="actions">
+                        <button class="btn btn-sm btn-secondary" onclick="editScreen(<%= screen.id %>)">✏️ Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteScreen(<%= screen.id %>, '<%= screen.name.replace(/'/g, "\\'") %>')">🗑</button>
+                      </td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-title">Add Screen</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="screen-form" enctype="multipart/form-data">
+          <input type="hidden" id="screen-id" name="id" />
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Name <span class="required">*</span></label>
+              <input type="text" id="f-name" name="name" required placeholder="e.g. Ticket Availability" />
+            </div>
+            <div class="form-group">
+              <label>Type <span class="required">*</span></label>
+              <select id="f-type" name="type" required onchange="onTypeChange(this.value)">
+                <option value="tickets">Tickets (live capacity)</option>
+                <option value="prices">Prices (ticket categories)</option>
+                <option value="qrcode">QR Code</option>
+                <option value="sponsor">Sponsor / Image</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Sort Order</label>
+              <input type="number" id="f-sort" name="sort_order" value="0" min="0" />
+            </div>
+            <div class="form-group">
+              <label>Duration (seconds)</label>
+              <input type="number" id="f-duration" name="duration" value="10" min="1" max="300" />
+            </div>
+            <div class="form-group">
+              <label>Background Color</label>
+              <div class="color-input-wrap">
+                <input type="color" id="f-bg-color" name="background_color" value="#000000" />
+                <span id="f-bg-color-val">#000000</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Text Color</label>
+              <div class="color-input-wrap">
+                <input type="color" id="f-text-color" name="text_color" value="#ffffff" />
+                <span id="f-text-color-val">#ffffff</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Background Image (URL or upload)</label>
+            <input type="text" id="f-bg-image" name="background_image" placeholder="https://... or leave blank" />
+          </div>
+
+          <div class="form-group">
+            <label id="text-content-label">Text Content</label>
+            <textarea id="f-text" name="text_content" rows="3" placeholder="Optional text to display"></textarea>
+          </div>
+
+          <div class="form-group" id="field-image">
+            <label>Image (Sponsor/Display)</label>
+            <input type="file" id="f-image" name="image" accept="image/*" onchange="previewImage(this)" />
+            <div id="image-preview" class="image-preview hidden"></div>
+          </div>
+
+          <div class="form-group" id="field-qr-url">
+            <label>QR Code URL <span class="required">*</span></label>
+            <input type="url" id="f-qr-url" name="qr_url" placeholder="https://..." />
+          </div>
+
+          <div class="form-group" id="field-event-id">
+            <label>Event ID Override <span class="hint">(leave blank to use global setting)</span></label>
+            <input type="text" id="f-event-id" name="event_id" placeholder="Optional event ID override" />
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="f-active" name="active" value="true" checked />
+              <span>Active</span>
+            </label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveScreen()">💾 Save Screen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>
