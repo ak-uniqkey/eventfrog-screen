@@ -17,7 +17,7 @@ if (!portValue) {
 
 const PORT = Number(portValue);
 if (!Number.isInteger(PORT)) {
-  throw new Error('PORT environment variable must be an integer.');
+  throw new Error('PORT environment variable must be an integer with digits only (e.g. 3000).');
 }
 
 if (PORT < 1 || PORT > 65535) {
