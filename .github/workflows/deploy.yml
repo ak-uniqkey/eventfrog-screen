@@ -38,14 +38,15 @@ jobs:
             exit "$status"
           fi
 
-      - name: Validate SSH key configuration
-        if: ${{ secrets.SSH_PRIVATE_KEY == '' }}
-        run: |
-          echo "ERROR: secrets.SSH_PRIVATE_KEY is not set." >&2
-          exit 1
-
       - name: Validate deploy configuration
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "ERROR: secrets.SSH_PRIVATE_KEY is not set." >&2
+            exit 1
+          fi
+
           if [ -z "${{ vars.SERVER_HOST }}" ]; then
             echo "ERROR: vars.SERVER_HOST is not set." >&2
             exit 1
@@ -126,7 +127,7 @@ jobs:
             echo "--- PM2 process list ---"
             pm2 list
 
-            echo "--- Waiting for $APP_NAME to reach 'online' status (up to 30 s) ---"
+            echo "--- Waiting for $APP_NAME to reach 'online' status (up to 30 seconds) ---"
             for attempt in $(seq 1 6); do
               sleep 5
               PID=$(pm2 pid "$APP_NAME" | tr -d '[:space:]')
