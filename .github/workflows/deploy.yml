@@ -80,7 +80,7 @@ jobs:
       - name: Setup SSH key for deploy
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H -p "${{ vars.SERVER_PORT }}" "${{ vars.SERVER_HOST }}" > ~/.ssh/known_hosts 2>/dev/null
 
@@ -136,6 +136,13 @@ jobs:
                 break
               fi
             done
+
+            FINAL_PID=$(pm2 pid "$APP_NAME" | tr -d '[:space:]')
+            if [ -z "$FINAL_PID" ] || [ "$FINAL_PID" = "0" ]; then
+              echo "ERROR: $APP_NAME failed to reach an online state." >&2
+              pm2 show "$APP_NAME" || true
+              exit 1
+            fi
 
             echo "--- PM2 $APP_NAME details ---"
             pm2 show "$APP_NAME"
