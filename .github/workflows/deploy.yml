@@ -1,0 +1,147 @@
+name: Deploy application
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Smoke test application startup
+        run: |
+          status=0
+          timeout 10s npm start || status=$?
+          if [ "$status" -ne 0 ] && [ "$status" -ne 124 ]; then
+            exit "$status"
+          fi
+
+      - name: Validate deploy configuration
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SSH_PRIVATE_KEY" ]; then
+            echo "ERROR: secrets.SSH_PRIVATE_KEY is not set." >&2
+            exit 1
+          fi
+
+          if [ -z "${{ vars.SERVER_HOST }}" ]; then
+            echo "ERROR: vars.SERVER_HOST is not set." >&2
+            exit 1
+          fi
+
+          if [ -z "${{ vars.SERVER_PORT }}" ]; then
+            echo "ERROR: vars.SERVER_PORT is not set." >&2
+            exit 1
+          fi
+
+          if [ -z "${{ vars.SERVER_USER }}" ]; then
+            echo "ERROR: vars.SERVER_USER is not set." >&2
+            exit 1
+          fi
+
+          if [ -z "${{ vars.DEPLOY_PATH }}" ]; then
+            echo "ERROR: vars.DEPLOY_PATH is not set." >&2
+            exit 1
+          fi
+
+          if [ -z "${{ vars.APP_NAME }}" ]; then
+            echo "ERROR: vars.APP_NAME is not set." >&2
+            exit 1
+          fi
+
+          if [ -z "${{ vars.APP_PORT }}" ]; then
+            echo "ERROR: vars.APP_PORT is not set." >&2
+            exit 1
+          fi
+
+      - name: Setup SSH key for deploy
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H -p "${{ vars.SERVER_PORT }}" "${{ vars.SERVER_HOST }}" > ~/.ssh/known_hosts
+
+      - name: Ensure deploy directory exists
+        run: |
+          ssh -p "${{ vars.SERVER_PORT }}" -i ~/.ssh/deploy_key "${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }}" \
+            "mkdir -p '${{ vars.DEPLOY_PATH }}'"
+
+      - name: Deploy to server
+        # Keep the server-side .env file and uploaded assets in place.
+        run: |
+          rsync -rlDzc \
+            --rsh "ssh -p ${{ vars.SERVER_PORT }} -i ~/.ssh/deploy_key" \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='coverage/' \
+            --exclude='*.log' \
+            --exclude='src/public/uploads/' \
+            ./ "${{ vars.SERVER_USER }}@${{ vars.SERVER_HOST }}:${{ vars.DEPLOY_PATH }}"
+
+      - name: Restart application on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ vars.SERVER_HOST }}
+          username: ${{ vars.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ vars.SERVER_PORT }}
+          script: |
+            APP_NAME="${{ vars.APP_NAME }}"
+            APP_PORT="${{ vars.APP_PORT }}"
+            DEPLOY_PATH="${{ vars.DEPLOY_PATH }}"
+
+            cd "$DEPLOY_PATH"
+
+            npm ci --omit=dev
+
+            pm2 delete "$APP_NAME" 2>/dev/null || true
+            PORT="$APP_PORT" pm2 start npm --name "$APP_NAME" --cwd "$DEPLOY_PATH" -- start
+            pm2 save
+
+            echo "--- PM2 process list ---"
+            pm2 list
+
+            echo "--- Waiting for $APP_NAME to reach 'online' status (up to 30 seconds) ---"
+            for attempt in $(seq 1 6); do
+              sleep 5
+              PID=$(pm2 pid "$APP_NAME" | tr -d '[:space:]')
+              echo "  [attempt $attempt] $APP_NAME pid: ${PID:-0}"
+              if [ -n "$PID" ] && [ "$PID" != "0" ]; then
+                break
+              fi
+            done
+
+            FINAL_PID=$(pm2 pid "$APP_NAME" | tr -d '[:space:]')
+            if [ -z "$FINAL_PID" ] || [ "$FINAL_PID" = "0" ]; then
+              echo "ERROR: $APP_NAME failed to reach an online state." >&2
+              pm2 show "$APP_NAME" || true
+              exit 1
+            fi
+
+            echo "--- PM2 $APP_NAME details ---"
+            pm2 show "$APP_NAME"
