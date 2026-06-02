@@ -11,11 +11,14 @@ if (!process.env.PORT) {
 }
 
 const portValue = process.env.PORT.trim();
-if (!/^\d+$/.test(portValue)) {
-  throw new Error('PORT environment variable must contain only digits.');
+if (!portValue) {
+  throw new Error('PORT environment variable is required. Configure PORT in deployment or .env.');
 }
 
-const PORT = Number.parseInt(portValue, 10);
+const PORT = Number(portValue);
+if (!Number.isInteger(PORT)) {
+  throw new Error('PORT environment variable must be an integer.');
+}
 
 if (PORT < 1 || PORT > 65535) {
   throw new Error('PORT environment variable must be a valid port number (1-65535).');
