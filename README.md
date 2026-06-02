@@ -5,7 +5,7 @@ Webanwendung für einen Linux-Webserver mit zwei Ebenen: eine **öffentliche Vol
 ## Funktionen
 
 - **Slideshow** (`/`): Vollbild-Anzeige, automatischer Wechsel, Tastatursteuerung (Pfeiltasten, Leertaste, `F` für Fullscreen)
-- **Ticket-Tabelle**: Pro Screen eine Event-ID, Anzeige als Tabelle (Kategorie, freie Plätze, Preis)
+- **Ticket-Tabelle**: Pro Screen eine Event-ID; Datum des Events (mit „heute“-Badge), Tabelle (Kategorie, frei, Kapazität, Preis), darunter QR-Barcode „Reservieren Sie jetzt“. Nach dem Eventdatum wird der Screen deaktiviert. Ausverkauft rot über Frei/Kapazität/Preis.
 - **Auto-Refresh**: Live-Aktualisierung der Ticket-Screens (Intervall in Sekunden, konfigurierbar)
 - **Multi-Event**: Jedes Event über die Event-ID am jeweiligen Screen
 - **Admin** (`/admin`): Screens verwalten, Eventfrog-Anbindung, Uploads — nur nach Login
@@ -118,14 +118,15 @@ Nach dem Login unter **General Settings**:
 - **Organizer API Key (Bearer)**: Schlüssel vom Typ „Organizer API (Read)“ in Eventfrog (nicht Public API / Embed). Key nur neu setzen, wenn du ihn änderst.
 - **API testen**: Event-ID eingeben und „Testen“ — zeigt, ob Kategorien geladen werden.
 - **Show Title**: Browser-Titel der Slideshow
-- **Currency**: Währung für Preisanzeige (z. B. `CHF`)
 - **Auto-Refresh**: Sekunden zwischen Live-Aktualisierungen (min. 5, Standard 15)
+
+Preise werden immer in **Euro** angezeigt (z. B. `20,00 €`).
 
 Unter **Screens** Slides anlegen und per Drag & Drop sortieren:
 
 | Typ | Inhalt |
 |-----|--------|
-| `tickets` | Tabelle: Kategoriename, freie Plätze, Preis (**Event-ID am Screen Pflicht**) |
+| `tickets` | Tabelle: Kategoriename, frei, Kapazität, Preis (**Event-ID am Screen Pflicht**) |
 | `qrcode` | QR-Code zu einer Buchungs-URL |
 | `sponsor` | Bild-Upload + optionaler Text |
 

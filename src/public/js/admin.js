@@ -56,7 +56,6 @@ document.getElementById('settings-form').addEventListener('submit', async (e) =>
   const apiKeyVal = apiKeyEl.value.trim();
   const data = {
     show_title: document.getElementById('show_title').value,
-    currency: document.getElementById('currency').value,
     refresh_interval: document.getElementById('refresh_interval').value,
   };
   if (apiKeyVal) data.api_key = apiKeyVal;
@@ -121,11 +120,19 @@ function onTypeChange(type) {
   const eventField = document.getElementById('field-event-id');
   const textLabel = document.getElementById('text-content-label');
 
-  qrField.style.display = type === 'qrcode' ? '' : 'none';
-  imgField.style.display = (type === 'sponsor') ? '' : 'none';
   const needsEvent = type === 'tickets' || type === 'prices';
+  const needsBookingUrl = type === 'qrcode' || needsEvent;
+  qrField.style.display = needsBookingUrl ? '' : 'none';
+  imgField.style.display = (type === 'sponsor') ? '' : 'none';
   eventField.style.display = needsEvent ? '' : 'none';
   document.getElementById('f-event-id').required = needsEvent;
+
+  const qrLabel = qrField.querySelector('label');
+  if (qrLabel) {
+    qrLabel.textContent = type === 'qrcode'
+      ? 'QR Code URL *'
+      : 'Reservierungs-URL (Barcode, optional)';
+  }
 
   if (type === 'tickets' || type === 'prices') textLabel.textContent = 'Überschrift (optional)';
   else if (type === 'qrcode') textLabel.textContent = 'QR Code Label';

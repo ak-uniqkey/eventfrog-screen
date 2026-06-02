@@ -28,6 +28,6 @@ INSERT INTO settings (key, value) VALUES
   ('api_key', ''),
   ('event_id', ''),
   ('show_title', 'Event Information Screen'),
-  ('currency', 'CHF'),
+  ('currency', 'EUR'),
   ('refresh_interval', '15')
 ON CONFLICT (key) DO NOTHING;

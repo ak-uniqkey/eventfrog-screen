@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { fetchCategoriesForEvent, getEvent } = require('../eventfrog');
+const { fetchCategoriesForEvent, getEvent, mapEventSummary } = require('../eventfrog');
 const QRCode = require('qrcode');
 const { requireAuth, maskSettings, shouldUpdateApiKey } = require('../auth');
 
@@ -53,7 +53,7 @@ router.get('/eventfrog/event', async (req, res) => {
     if (cfg.error) return res.status(400).json({ error: cfg.error });
     const { apiKey, eventId } = cfg;
     const data = await getEvent(apiKey, eventId);
-    res.json(data);
+    res.json({ event: mapEventSummary(data), raw: data });
   } catch (err) {
     console.error('eventfrog/event:', err.message);
     res.status(err.status || 500).json({ error: err.message });
@@ -122,8 +122,8 @@ router.get('/settings', async (req, res) => {
 
 router.post('/settings', async (req, res) => {
   try {
-    const { api_key, show_title, currency, refresh_interval } = req.body;
-    const updates = { show_title, currency, refresh_interval };
+    const { api_key, show_title, refresh_interval } = req.body;
+    const updates = { show_title, refresh_interval };
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         await pool.query(

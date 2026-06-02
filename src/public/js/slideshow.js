@@ -3,6 +3,7 @@
   let slideTimer = null;
   let refreshTimer = null;
   let currentScreen = null;
+  let currentSlideDeactivated = false;
 
   const refreshSeconds = Math.max(5, parseInt(SETTINGS.refresh_interval, 10) || 15);
 
@@ -111,7 +112,14 @@
 
   function categoryAvailable(cat) {
     return cat.available_capacity ?? cat.availableCapacity
-      ?? cat.remainingCapacity ?? cat.freeSeats ?? cat.available;
+      ?? cat.remainingNumberOfTickets ?? cat.availableNumberOfTickets
+      ?? cat.numberOfRemainingTickets ?? cat.remainingCapacity
+      ?? cat.freeSeats ?? cat.available;
+  }
+
+  function categoryTotalCapacity(cat) {
+    return cat.total_capacity ?? cat.totalCapacity
+      ?? cat.totalNumberOfTickets ?? cat.capacity;
   }
 
   function categoryPriceValue(cat) {
@@ -138,17 +146,89 @@
     }
   }
 
-  function formatPrice(amount) {
-    const currency = SETTINGS.currency || 'CHF';
-    if (typeof amount === 'number') {
-      return (amount / 100).toFixed(2) + ' ' + currency;
+  async function fetchEventSummary(eventId) {
+    const eid = (eventId || '').trim();
+    if (!eid) return { error: 'Keine Event-ID' };
+    try {
+      const r = await fetch(`/api/eventfrog/event?event_id=${encodeURIComponent(eid)}`);
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) return { error: data.error || `API-Fehler ${r.status}` };
+      return data.event || null;
+    } catch (e) {
+      return { error: e.message || 'Netzwerkfehler' };
     }
-    return amount + ' ' + currency;
+  }
+
+  async function fetchBarcodeDataUrl(url) {
+    if (!url) return '';
+    try {
+      const r = await fetch(`/api/qrcode?url=${encodeURIComponent(url)}`);
+      if (!r.ok) return '';
+      const data = await r.json();
+      return data.qr || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function bookingUrlForScreen(screen, eventSummary) {
+    const custom = (screen.qr_url || '').trim();
+    if (custom) return custom;
+    return eventSummary?.bookingUrl || null;
+  }
+
+  function renderEventDateHeader(eventSummary) {
+    if (!eventSummary?.dateLabel) return '';
+    const todayBadge = eventSummary.isToday
+      ? '<span class="event-date-today">heute</span>'
+      : '';
+    return `
+      <div class="tickets-event-date">
+        <span class="event-date-text">${escapeHtml(eventSummary.dateLabel)}</span>
+        ${todayBadge}
+      </div>`;
+  }
+
+  function renderEventEndedContent(eventSummary) {
+    const dateLine = eventSummary?.dateLabel
+      ? `<p class="event-ended-date">${escapeHtml(eventSummary.dateLabel)}</p>`
+      : '';
+    return `
+      <div class="tickets-table-content event-ended-content">
+        ${dateLine}
+        <h1 class="event-ended-title">Veranstaltung beendet</h1>
+        <p class="event-ended-msg">Diese Anzeige ist nach dem Eventdatum nicht mehr aktiv.</p>
+      </div>`;
+  }
+
+  async function renderReservationBlock(screen, eventSummary) {
+    const url = bookingUrlForScreen(screen, eventSummary);
+    if (!url) return '';
+    const barcode = await fetchBarcodeDataUrl(url);
+    if (!barcode) return '';
+    return `
+      <div class="tickets-reservation">
+        <p class="tickets-reservation-text">Reservieren Sie jetzt</p>
+        <div class="tickets-barcode-wrap">
+          <img src="${barcode}" class="tickets-barcode" alt="Barcode zur Reservierung" />
+        </div>
+      </div>`;
+  }
+
+  function formatPrice(amount) {
+    if (typeof amount === 'number') {
+      return (amount / 100).toFixed(2).replace('.', ',') + ' €';
+    }
+    return String(amount);
   }
 
   function availabilityLabel(n) {
     if (n === undefined || n === null) return '–';
-    if (n === 0) return 'Ausverkauft';
+    return String(n);
+  }
+
+  function capacityLabel(n) {
+    if (n === undefined || n === null) return '–';
     return String(n);
   }
 
@@ -162,11 +242,28 @@
   async function renderTicketsTableSlide(screen) {
     const eventId = (screen.event_id || '').trim();
     if (!eventId) {
+      currentSlideDeactivated = false;
       return `
         <div class="tickets-table-content">
           <p class="tickets-table-msg">Keine Event-ID am Screen hinterlegt.</p>
         </div>`;
     }
+
+    const eventSummary = await fetchEventSummary(eventId);
+    if (eventSummary?.error) {
+      currentSlideDeactivated = false;
+      return `
+        <div class="tickets-table-content">
+          <p class="tickets-table-msg">${escapeHtml(eventSummary.error)}</p>
+        </div>`;
+    }
+
+    if (eventSummary?.isPast) {
+      currentSlideDeactivated = true;
+      return renderEventEndedContent(eventSummary);
+    }
+
+    currentSlideDeactivated = false;
 
     const catData = await fetchCategories(eventId);
     if (catData.error) {
@@ -178,36 +275,49 @@
 
     const categories = parseCategories(catData);
     const title = screen.text_content || '';
+    const reservation = await renderReservationBlock(screen, eventSummary);
 
     let rows = '';
     if (categories.length > 0) {
       rows = categories.map(cat => {
         const available = categoryAvailable(cat);
+        const total = categoryTotalCapacity(cat);
         const soldOut = available === 0;
+        if (soldOut) {
+          return `
+          <tr class="sold-out">
+            <td class="col-name">${escapeHtml(categoryName(cat))}</td>
+            <td colspan="3" class="col-sold-out">Ausverkauft</td>
+          </tr>`;
+        }
         return `
-          <tr class="${soldOut ? 'sold-out' : ''}">
+          <tr>
             <td class="col-name">${escapeHtml(categoryName(cat))}</td>
             <td class="col-available">${escapeHtml(availabilityLabel(available))}</td>
+            <td class="col-total">${escapeHtml(capacityLabel(total))}</td>
             <td class="col-price">${escapeHtml(categoryPrice(cat))}</td>
           </tr>`;
       }).join('');
     } else {
-      rows = `<tr><td colspan="3" class="no-data">Keine Ticketkategorien für Event ${escapeHtml(eventId)}. Im Admin unter „API testen“ prüfen — ist Ticketverkauf für dieses Event aktiv?</td></tr>`;
+      rows = `<tr><td colspan="4" class="no-data">Keine Ticketkategorien für Event ${escapeHtml(eventId)}. Im Admin unter „API testen“ prüfen — ist Ticketverkauf für dieses Event aktiv?</td></tr>`;
     }
 
     return `
       <div class="tickets-table-content">
         ${title ? `<h1 class="tickets-table-title">${escapeHtml(title)}</h1>` : ''}
+        ${renderEventDateHeader(eventSummary)}
         <table class="tickets-table">
           <thead>
             <tr>
               <th>Kategorie</th>
-              <th>Freie Plätze</th>
+              <th>Frei</th>
+              <th>Kapazität</th>
               <th>Preis</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
+        ${reservation}
       </div>`;
   }
 
@@ -264,6 +374,7 @@
   async function renderSlide(screen) {
     const container = document.getElementById('slide-container');
     container.innerHTML = '';
+    currentSlideDeactivated = false;
     applySlideBackground(container, screen);
 
     const slide = document.createElement('div');
@@ -326,6 +437,21 @@
     const screen = SCREENS[currentIndex];
     currentScreen = screen;
     await renderSlide(screen);
+
+    const slideshow = document.getElementById('slideshow');
+    if (slideshow) {
+      slideshow.classList.toggle('slide-deactivated', currentSlideDeactivated);
+    }
+
+    if (currentSlideDeactivated) {
+      const bar = document.getElementById('progress-bar');
+      if (bar) {
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+      }
+      return;
+    }
+
     startRefreshTimer(screen);
     startProgress(screen.duration || 10);
     slideTimer = setTimeout(() => {

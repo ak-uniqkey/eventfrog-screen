@@ -41,23 +41,118 @@ async function getEventCategories(apiKey, eventId) {
   return organizerGet(apiKey, `/events/${encodeURIComponent(eventId)}/ticketcategories`);
 }
 
-function pickLocalizedInfo(cat) {
-  const list = cat.localizedInfo || [];
+function pickLocalizedInfo(entity) {
+  const list = entity?.localizedInfo || [];
   return list.find((l) => l.locale && String(l.locale).startsWith('de')) || list[0] || {};
 }
 
-function extractPriceCents(cat) {
-  const loc = pickLocalizedInfo(cat);
-  const ps = cat.priceStrategy;
-  if (ps) {
-    if (ps.type === 'early_bird' && ps.earlyBird) {
-      const stages = ps.earlyBird.stages || [];
-      if (stages.length > 0 && stages[0].price != null) return stages[0].price;
-      if (ps.earlyBird.regularPrice != null) return ps.earlyBird.regularPrice;
-    }
-    if (ps.fixed?.price != null) return ps.fixed.price;
-    if (ps.price != null) return ps.price;
+const DEFAULT_TIME_ZONE = 'Europe/Zurich';
+
+function calendarDayKey(iso, timeZone = DEFAULT_TIME_ZONE) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === 'year')?.value;
+  const m = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+  if (!y || !m || !day) return null;
+  return `${y}-${m}-${day}`;
+}
+
+function todayCalendarKey(timeZone = DEFAULT_TIME_ZONE) {
+  return calendarDayKey(new Date().toISOString(), timeZone);
+}
+
+function isEventPast(event) {
+  const tz = event?.timeZone || DEFAULT_TIME_ZONE;
+  const endKey = calendarDayKey(event?.endDate || event?.beginDate, tz);
+  const todayKey = todayCalendarKey(tz);
+  if (!endKey || !todayKey) return false;
+  return todayKey > endKey;
+}
+
+function isEventToday(event) {
+  const tz = event?.timeZone || DEFAULT_TIME_ZONE;
+  const beginKey = calendarDayKey(event?.beginDate, tz);
+  const endKey = calendarDayKey(event?.endDate || event?.beginDate, tz);
+  const todayKey = todayCalendarKey(tz);
+  if (!beginKey || !endKey || !todayKey) return false;
+  return todayKey >= beginKey && todayKey <= endKey;
+}
+
+function formatEventDateLabel(beginDate, timeZone = DEFAULT_TIME_ZONE) {
+  if (!beginDate) return null;
+  const d = new Date(beginDate);
+  if (Number.isNaN(d.getTime())) return null;
+  const weekday = d.toLocaleDateString('de-CH', { weekday: 'long', timeZone });
+  const day = d.toLocaleDateString('de-CH', { day: '2-digit', timeZone });
+  const month = d.toLocaleDateString('de-CH', { month: 'long', timeZone });
+  const year = d.toLocaleDateString('de-CH', { year: 'numeric', timeZone });
+  return `${weekday}, ${day}. ${month} ${year}`;
+}
+
+function buildBookingUrl(event) {
+  const id = event?.id;
+  if (!id) return null;
+  const country = String(event.platformCountry || 'CH').toUpperCase();
+  if (country === 'DE') {
+    return `https://www.eventfrog.de/de/event.html?vnr=${encodeURIComponent(id)}`;
   }
+  return `https://www.eventfrog.ch/de/event.html?vnr=${encodeURIComponent(id)}`;
+}
+
+function mapEventSummary(event) {
+  const loc = pickLocalizedInfo(event);
+  const tz = event?.timeZone || DEFAULT_TIME_ZONE;
+  return {
+    id: event?.id,
+    title: loc.title || null,
+    beginDate: event?.beginDate || null,
+    endDate: event?.endDate || event?.beginDate || null,
+    timeZone: tz,
+    dateLabel: formatEventDateLabel(event?.beginDate, tz),
+    isToday: isEventToday(event),
+    isPast: isEventPast(event),
+    bookingUrl: buildBookingUrl(event),
+  };
+}
+
+function parseApiDate(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isPriceStageActive(stage, now = new Date()) {
+  const validFrom = parseApiDate(stage.validFrom);
+  const validUntil = parseApiDate(stage.validUntil);
+  if (validFrom && now < validFrom) return false;
+  if (validUntil && now >= validUntil) return false;
+  return true;
+}
+
+function extractPriceCents(cat) {
+  const ps = cat.priceStrategy;
+  if (!ps) return undefined;
+
+  const now = new Date();
+
+  if (ps.type === 'early_bird' && ps.earlyBird) {
+    const eb = ps.earlyBird;
+    const stages = (eb.stages || []).filter((s) => s.price != null);
+    const activeStage = stages.find((s) => isPriceStageActive(s, now));
+    if (activeStage) return activeStage.price;
+    if (eb.regularPrice != null) return eb.regularPrice;
+  }
+
+  if (ps.type === 'fixed' && ps.fixed?.price != null) return ps.fixed.price;
+  if (ps.price != null) return ps.price;
   return undefined;
 }
 
@@ -79,18 +174,24 @@ function extractAvailable(cat) {
     return Math.max(0, total - sold);
   }
 
-  // Organizer-API liefert oft nur Gesamtkontingent (kein Verkaufsstand)
-  if (total !== undefined) return total;
   return undefined;
+}
+
+function extractTotalCapacity(cat) {
+  const v = cat.totalNumberOfTickets ?? cat.totalCapacity ?? cat.capacity;
+  return v !== undefined && v !== null ? v : undefined;
 }
 
 function mapEventfrogCategory(cat) {
   const loc = pickLocalizedInfo(cat);
+  const price = extractPriceCents(cat);
   return {
     name: loc.title || 'Kategorie',
     available_capacity: extractAvailable(cat),
-    price: extractPriceCents(cat),
-    priceText: loc.priceText || null,
+    total_capacity: extractTotalCapacity(cat),
+    price,
+    // priceText oft veraltet (z. B. „18 / 20 €“) — nur ohne berechneten Preis nutzen
+    priceText: price != null ? null : (loc.priceText || null),
   };
 }
 
@@ -153,5 +254,10 @@ module.exports = {
   parseCategories,
   normalizeCategories,
   mapEventfrogCategory,
+  mapEventSummary,
+  formatEventDateLabel,
+  isEventPast,
+  isEventToday,
+  buildBookingUrl,
   formatApiError,
 };

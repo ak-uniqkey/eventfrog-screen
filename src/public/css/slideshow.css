@@ -148,9 +148,68 @@ body {
   font-size: 3.5vw;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 3vh;
+  margin-bottom: 2vh;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.tickets-event-date {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2vw;
+  margin-bottom: 2.5vh;
+  font-size: 2.6vw;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.event-date-today {
+  display: inline-block;
+  padding: 0.35em 0.9em;
+  border-radius: 999px;
+  background: rgba(96, 191, 0, 0.35);
+  border: 2px solid #60bf00;
+  color: #e8ffd0;
+  font-size: 0.55em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  vertical-align: middle;
+}
+
+.event-ended-content {
+  text-align: center;
+  justify-content: center;
+  min-height: 50vh;
+}
+
+.event-ended-title {
+  font-size: 4.5vw;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 2vh 0 1vh;
+  color: #ff6b6b;
+}
+
+.event-ended-date {
+  font-size: 2.4vw;
+  opacity: 0.75;
+  margin-bottom: 2vh;
+}
+
+.event-ended-msg {
+  font-size: 2vw;
+  opacity: 0.65;
+  max-width: 70%;
+  margin: 0 auto;
+}
+
+#slideshow.slide-deactivated #progress-bar,
+#slideshow.slide-deactivated #slide-indicators {
+  opacity: 0.25;
+  pointer-events: none;
 }
 
 .tickets-table-msg {
@@ -176,15 +235,22 @@ body {
   text-align: left;
 }
 
-.tickets-table th:nth-child(2) { text-align: center; }
-.tickets-table th:nth-child(3) { text-align: right; }
+.tickets-table th:nth-child(2),
+.tickets-table th:nth-child(3) { text-align: center; }
+.tickets-table th:nth-child(4) { text-align: right; }
 
 .tickets-table tbody tr:nth-child(even) {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.tickets-table tbody tr.sold-out {
-  opacity: 0.55;
+.tickets-table tbody tr.sold-out .col-sold-out {
+  text-align: center;
+  font-weight: 800;
+  font-size: 2.8vw;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ff3b30;
+  text-shadow: 0 0 12px rgba(255, 59, 48, 0.45);
 }
 
 .tickets-table td {
@@ -193,9 +259,41 @@ body {
   vertical-align: middle;
 }
 
-.tickets-table .col-available { text-align: center; font-weight: 700; font-size: 2.8vw; }
+.tickets-table .col-available,
+.tickets-table .col-total { text-align: center; font-weight: 700; font-size: 2.8vw; }
+.tickets-table .col-total { font-weight: 600; font-size: 2.4vw; opacity: 0.9; }
 .tickets-table .col-price { text-align: right; font-weight: 700; font-size: 2.6vw; }
 .tickets-table .no-data { text-align: center; opacity: 0.5; padding: 4vh; }
+
+.tickets-reservation {
+  margin-top: 3vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5vh;
+}
+
+.tickets-reservation-text {
+  font-size: 2.2vw;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.tickets-barcode-wrap {
+  background: #fff;
+  padding: 1.2vh 1.2vw;
+  border-radius: 8px;
+  line-height: 0;
+}
+
+.tickets-barcode {
+  display: block;
+  width: 14vw;
+  height: 14vw;
+  image-rendering: pixelated;
+}
 
 .qr-content {
   text-align: center;

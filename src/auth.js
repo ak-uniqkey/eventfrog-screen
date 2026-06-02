@@ -42,7 +42,7 @@ async function createUser(username, password) {
 }
 
 const PUBLIC_SETTING_KEYS = [
-  'show_title', 'currency', 'refresh_interval',
+  'show_title', 'refresh_interval',
   'header_enabled', 'header_title', 'header_logo',
   'footer_enabled', 'footer_logos',
 ];
