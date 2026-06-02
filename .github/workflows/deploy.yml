@@ -11,6 +11,8 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
@@ -36,13 +38,14 @@ jobs:
             exit "$status"
           fi
 
+      - name: Validate SSH key configuration
+        if: ${{ secrets.SSH_PRIVATE_KEY == '' }}
+        run: |
+          echo "ERROR: secrets.SSH_PRIVATE_KEY is not set." >&2
+          exit 1
+
       - name: Validate deploy configuration
         run: |
-          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-            echo "ERROR: secrets.SSH_PRIVATE_KEY is not set." >&2
-            exit 1
-          fi
-
           if [ -z "${{ vars.SERVER_HOST }}" ]; then
             echo "ERROR: vars.SERVER_HOST is not set." >&2
             exit 1
@@ -88,7 +91,7 @@ jobs:
       - name: Deploy to server
         # Keep the server-side .env file and uploaded assets in place.
         run: |
-          rsync -rlDzvc -i \
+          rsync -rlDzc -i \
             --rsh "ssh -p ${{ vars.SERVER_PORT }} -i ~/.ssh/deploy_key" \
             --exclude='.git/' \
             --exclude='.github/' \
