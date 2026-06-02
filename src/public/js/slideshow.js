@@ -6,6 +6,64 @@
 
   const refreshSeconds = Math.max(5, parseInt(SETTINGS.refresh_interval, 10) || 15);
 
+  function formatClock() {
+    return new Date().toLocaleTimeString('de-CH', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+
+  function initLayout() {
+    const header = document.getElementById('site-header');
+    const footer = document.getElementById('site-footer');
+    const logoEl = document.getElementById('header-logo');
+    const titleEl = document.getElementById('header-title');
+    const clockEl = document.getElementById('header-clock');
+    const footerWrap = document.getElementById('footer-logos');
+
+    if (SETTINGS.header_enabled) {
+      header.classList.remove('hidden');
+      header.setAttribute('aria-hidden', 'false');
+      if (SETTINGS.header_logo) {
+        logoEl.src = SETTINGS.header_logo;
+        logoEl.alt = 'Logo';
+        logoEl.classList.remove('hidden');
+      } else {
+        logoEl.removeAttribute('src');
+        logoEl.classList.add('hidden');
+      }
+      titleEl.textContent = SETTINGS.header_title || '';
+      titleEl.style.display = SETTINGS.header_title ? '' : 'none';
+      clockEl.textContent = formatClock();
+    }
+
+    if (SETTINGS.footer_enabled) {
+      const logos = Array.isArray(SETTINGS.footer_logos) ? SETTINGS.footer_logos : [];
+      if (logos.length > 0) {
+        footer.classList.remove('hidden');
+        footer.setAttribute('aria-hidden', 'false');
+        footerWrap.innerHTML = logos.map(src =>
+          `<img src="${src}" alt="" class="footer-logo" />`
+        ).join('');
+      }
+    }
+  }
+
+  let clockTimer = null;
+  function startClock() {
+    const clockEl = document.getElementById('header-clock');
+    if (!clockEl || !SETTINGS.header_enabled) return;
+    clockEl.textContent = formatClock();
+    if (clockTimer) clearInterval(clockTimer);
+    clockTimer = setInterval(() => {
+      clockEl.textContent = formatClock();
+    }, 1000);
+  }
+
+  initLayout();
+  startClock();
+
   if (!SCREENS || SCREENS.length === 0) {
     document.getElementById('slide-container').innerHTML =
       '<div class="empty-slide"><h1>Keine Screens konfiguriert</h1></div>';
@@ -25,28 +83,40 @@
 
   function parseCategories(data) {
     if (!data) return [];
-    return data.categories || data.ticketCategories || data.ticketcategories
-      || (Array.isArray(data) ? data : []);
+    if (Array.isArray(data.categories)) return data.categories;
+    if (Array.isArray(data)) return data;
+    return data.ticketCategories || data.ticketcategories
+      || data.items || [];
   }
 
-  async function fetchEventData(eventId) {
-    const eid = eventId || SETTINGS.event_id;
-    if (!eid) return null;
-    try {
-      const r = await fetch(`/api/eventfrog/event?event_id=${encodeURIComponent(eid)}`);
-      if (!r.ok) return null;
-      return await r.json();
-    } catch { return null; }
+  function categoryAvailable(cat) {
+    const n = cat.available_capacity ?? cat.availableCapacity
+      ?? cat.remainingCapacity ?? cat.freeSeats ?? cat.available;
+    return n;
+  }
+
+  function categoryPriceValue(cat) {
+    if (cat.price !== undefined) return cat.price;
+    if (cat.amount !== undefined) return cat.amount;
+    if (cat.priceInCents !== undefined) return cat.priceInCents;
+    return undefined;
+  }
+
+  function isTicketSlide(screen) {
+    return screen.type === 'tickets' || screen.type === 'prices';
   }
 
   async function fetchCategories(eventId) {
-    const eid = eventId || SETTINGS.event_id;
-    if (!eid) return null;
+    const eid = (eventId || '').trim();
+    if (!eid) return { error: 'Keine Event-ID' };
     try {
       const r = await fetch(`/api/eventfrog/categories?event_id=${encodeURIComponent(eid)}`);
-      if (!r.ok) return null;
-      return await r.json();
-    } catch { return null; }
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) return { error: data.error || `API-Fehler ${r.status}` };
+      return data;
+    } catch (e) {
+      return { error: e.message || 'Netzwerkfehler' };
+    }
   }
 
   function formatPrice(amount) {
@@ -63,91 +133,62 @@
     return String(n);
   }
 
-  function renderCategoryCard(cat, screen, mode) {
-    const name = cat.name || cat.title || 'Kategorie';
-    const available = cat.available_capacity;
-    const soldOut = available === 0;
-    const price = cat.price !== undefined ? formatPrice(cat.price)
-      : (cat.amount !== undefined ? formatPrice(cat.amount) : null);
+  function categoryPrice(cat) {
+    const val = categoryPriceValue(cat);
+    if (val !== undefined) return formatPrice(val);
+    return '–';
+  }
 
-    let mainValue = '';
-    let mainLabel = '';
-    if (mode === 'tickets') {
-      mainValue = availabilityLabel(available);
-      mainLabel = 'verfügbar';
-    } else {
-      mainValue = price || '–';
-      mainLabel = available !== undefined ? `${availabilityLabel(available)} verfügbar` : '';
+  async function renderTicketsTableSlide(screen) {
+    const eventId = (screen.event_id || '').trim();
+    if (!eventId) {
+      return `
+        <div class="tickets-table-content">
+          <p class="tickets-table-msg">Keine Event-ID am Screen hinterlegt.</p>
+        </div>`;
     }
 
-    return `
-      <article class="ticket-card ${soldOut ? 'sold-out' : ''}">
-        <h3 class="card-title">${escapeHtml(name)}</h3>
-        <div class="card-main">${escapeHtml(mainValue)}</div>
-        <div class="card-sub">${escapeHtml(mainLabel)}</div>
-        ${mode === 'prices' && price ? `<div class="card-price">${escapeHtml(price)}</div>` : ''}
-      </article>`;
-  }
-
-  function renderCardsSlide(screen, categories, mode) {
-    const title = screen.text_content || (mode === 'tickets' ? 'Verfügbarkeit' : 'Tickets & Preise');
-    let cardsHtml = '';
-
-    if (categories.length > 0) {
-      cardsHtml = categories.map(cat => renderCategoryCard(cat, screen, mode)).join('');
-    } else {
-      cardsHtml = '<div class="cards-empty">Keine Ticketkategorien verfügbar</div>';
+    const catData = await fetchCategories(eventId);
+    if (catData.error) {
+      return `
+        <div class="tickets-table-content">
+          <p class="tickets-table-msg">${escapeHtml(catData.error)}</p>
+        </div>`;
     }
 
-    return `
-      <div class="cards-content">
-        <h1 class="cards-title">${escapeHtml(title)}</h1>
-        <div class="cards-grid">${cardsHtml}</div>
-      </div>`;
-  }
-
-  function renderEventSummaryCard(eventName, available, total) {
-    return `
-      <article class="ticket-card summary-card">
-        <h3 class="card-title">${escapeHtml(eventName)}</h3>
-        <div class="card-main">${escapeHtml(availabilityLabel(available))}</div>
-        <div class="card-sub">Plätze gesamt verfügbar</div>
-        ${total !== undefined && total !== null ? `<div class="card-meta">von ${total} Plätzen</div>` : ''}
-      </article>`;
-  }
-
-  async function renderTicketsSlide(screen) {
-    const [eventData, catData] = await Promise.all([
-      fetchEventData(screen.event_id),
-      fetchCategories(screen.event_id),
-    ]);
     const categories = parseCategories(catData);
+    const title = screen.text_content || '';
+
+    let rows = '';
     if (categories.length > 0) {
-      return renderCardsSlide(screen, categories, 'tickets');
+      rows = categories.map(cat => {
+        const available = categoryAvailable(cat);
+        const soldOut = available === 0;
+        return `
+          <tr class="${soldOut ? 'sold-out' : ''}">
+            <td class="col-name">${escapeHtml(cat.name || cat.title || '–')}</td>
+            <td class="col-available">${escapeHtml(availabilityLabel(available))}</td>
+            <td class="col-price">${escapeHtml(categoryPrice(cat))}</td>
+          </tr>`;
+      }).join('');
+    } else {
+      rows = '<tr><td colspan="3" class="no-data">Keine Kategorien für Event ' + escapeHtml(eventId) + '</td></tr>';
     }
 
-    let eventName = screen.text_content || 'Event';
-    let available;
-    let total;
-    if (eventData) {
-      const event = eventData.event || eventData;
-      if (event.name) eventName = event.name;
-      available = event.available_capacity;
-      total = event.capacity;
-    }
     return `
-      <div class="cards-content">
-        <h1 class="cards-title">${escapeHtml(screen.text_content || 'Verfügbarkeit')}</h1>
-        <div class="cards-grid cards-grid--few">
-          ${renderEventSummaryCard(eventName, available, total)}
-        </div>
+      <div class="tickets-table-content">
+        ${title ? `<h1 class="tickets-table-title">${escapeHtml(title)}</h1>` : ''}
+        <table class="tickets-table">
+          <thead>
+            <tr>
+              <th>Kategorie</th>
+              <th>Freie Plätze</th>
+              <th>Preis</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
       </div>`;
-  }
-
-  async function renderPricesSlide(screen) {
-    const catData = await fetchCategories(screen.event_id);
-    const categories = parseCategories(catData);
-    return renderCardsSlide(screen, categories, 'prices');
   }
 
   async function renderQRSlide(screen) {
@@ -209,10 +250,8 @@
     slide.className = 'slide slide-' + screen.type;
     slide.style.color = screen.text_color || '#ffffff';
 
-    if (screen.type === 'tickets') {
-      slide.innerHTML = await renderTicketsSlide(screen);
-    } else if (screen.type === 'prices') {
-      slide.innerHTML = await renderPricesSlide(screen);
+    if (isTicketSlide(screen)) {
+      slide.innerHTML = await renderTicketsTableSlide(screen);
     } else if (screen.type === 'qrcode') {
       slide.innerHTML = await renderQRSlide(screen);
       container.appendChild(slide);
@@ -235,7 +274,7 @@
 
   function startRefreshTimer(screen) {
     clearRefreshTimer();
-    if (!screen || (screen.type !== 'tickets' && screen.type !== 'prices')) return;
+    if (!screen || !isTicketSlide(screen)) return;
     refreshTimer = setInterval(() => {
       if (currentScreen && currentScreen.id === screen.id) {
         renderSlide(screen);

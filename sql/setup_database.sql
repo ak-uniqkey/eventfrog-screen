@@ -92,7 +92,12 @@ INSERT INTO settings (key, value) VALUES
   ('event_id', ''),
   ('show_title', 'Event Information Screen'),
   ('currency', 'CHF'),
-  ('refresh_interval', '15')
+  ('refresh_interval', '15'),
+  ('header_enabled', 'true'),
+  ('header_title', ''),
+  ('header_logo', ''),
+  ('footer_enabled', 'true'),
+  ('footer_logos', '[]')
 ON CONFLICT (key) DO NOTHING;
 
 COMMIT;

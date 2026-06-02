@@ -8,7 +8,22 @@
 </head>
 <body>
   <div id="slideshow">
-    <div id="slide-container"></div>
+    <header id="site-header" class="site-header hidden" aria-hidden="true">
+      <div class="header-logo-wrap">
+        <img id="header-logo" class="header-logo" alt="" />
+      </div>
+      <h1 id="header-title" class="header-title"></h1>
+      <div id="header-clock" class="header-clock" aria-live="polite"></div>
+    </header>
+
+    <main id="slide-main" class="slide-main">
+      <div id="slide-container"></div>
+    </main>
+
+    <footer id="site-footer" class="site-footer hidden" aria-hidden="true">
+      <div id="footer-logos" class="footer-logos"></div>
+    </footer>
+
     <div id="progress-bar"></div>
     <div id="slide-indicators"></div>
   </div>

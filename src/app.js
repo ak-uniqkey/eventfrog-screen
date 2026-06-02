@@ -77,6 +77,7 @@ async function initDB() {
 app.use('/', require('./routes/index'));
 app.use('/admin', require('./routes/admin'));
 app.use('/api', require('./routes/api'));
+app.use('/api/layout', require('./routes/layout'));
 
 initDB().then(() => {
   app.listen(PORT, () => {

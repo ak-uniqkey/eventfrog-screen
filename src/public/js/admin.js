@@ -27,13 +27,34 @@ document.getElementById('btn-logout')?.addEventListener('click', async () => {
   window.location.href = '/admin/login';
 });
 
+// ---- Eventfrog API test ----
+async function testEventfrogApi() {
+  const eventId = document.getElementById('test_event_id')?.value?.trim();
+  const out = document.getElementById('api-test-result');
+  if (!eventId) {
+    showToast('Bitte Event-ID zum Testen eingeben', 'error');
+    return;
+  }
+  out.classList.remove('hidden');
+  out.textContent = 'Teste…';
+  try {
+    const r = await apiFetch(`/api/eventfrog/test?event_id=${encodeURIComponent(eventId)}`);
+    const data = await r.json();
+    out.textContent = JSON.stringify(data, null, 2);
+    if (data.ok) showToast(`${data.categories_count} Kategorien geladen`);
+    else showToast(data.error || 'Test fehlgeschlagen', 'error');
+  } catch (err) {
+    out.textContent = err.message;
+    showToast(err.message, 'error');
+  }
+}
+
 // ---- Settings ----
 document.getElementById('settings-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const apiKeyEl = document.getElementById('api_key');
   const apiKeyVal = apiKeyEl.value.trim();
   const data = {
-    event_id: document.getElementById('event_id').value,
     show_title: document.getElementById('show_title').value,
     currency: document.getElementById('currency').value,
     refresh_interval: document.getElementById('refresh_interval').value,
@@ -102,10 +123,11 @@ function onTypeChange(type) {
 
   qrField.style.display = type === 'qrcode' ? '' : 'none';
   imgField.style.display = (type === 'sponsor') ? '' : 'none';
-  eventField.style.display = (type === 'tickets' || type === 'prices') ? '' : 'none';
+  const needsEvent = type === 'tickets' || type === 'prices';
+  eventField.style.display = needsEvent ? '' : 'none';
+  document.getElementById('f-event-id').required = needsEvent;
 
-  if (type === 'tickets') textLabel.textContent = 'Event Name (fallback)';
-  else if (type === 'prices') textLabel.textContent = 'Section Title';
+  if (type === 'tickets' || type === 'prices') textLabel.textContent = 'Überschrift (optional)';
   else if (type === 'qrcode') textLabel.textContent = 'QR Code Label';
   else textLabel.textContent = 'Text Content';
 }
@@ -134,8 +156,14 @@ function previewImage(input) {
 // ---- Save Screen ----
 async function saveScreen() {
   const form = document.getElementById('screen-form');
+  const type = document.getElementById('f-type').value;
+  const eventId = document.getElementById('f-event-id').value.trim();
+  if ((type === 'tickets' || type === 'prices') && !eventId) {
+    showToast('Event-ID ist für Ticket-Screens erforderlich', 'error');
+    return;
+  }
+
   const formData = new FormData(form);
-  // Handle active checkbox explicitly
   formData.set('active', document.getElementById('f-active').checked ? 'true' : 'false');
 
   try {
@@ -206,6 +234,7 @@ async function reloadScreens() {
       <tr data-id="${s.id}">
         <td class="drag-handle">⠿</td>
         <td class="screen-name">${escHtml(s.name)}</td>
+        <td class="screen-event-id">${escHtml(s.event_id || '–')}</td>
         <td><span class="badge badge-${s.type}">${s.type}</span></td>
         <td>${s.duration}s</td>
         <td>
@@ -223,7 +252,7 @@ async function reloadScreens() {
         <table class="screens-table">
           <thead>
             <tr>
-              <th>⠿</th><th>Name</th><th>Type</th><th>Duration</th><th>Status</th><th>Actions</th>
+              <th>⠿</th><th>Name</th><th>Event-ID</th><th>Type</th><th>Duration</th><th>Status</th><th>Actions</th>
             </tr>
           </thead>
           <tbody id="screens-tbody">${rows}</tbody>

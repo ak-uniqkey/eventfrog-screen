@@ -29,12 +29,17 @@
         <form id="settings-form">
           <div class="form-grid">
             <div class="form-group">
-              <label>API Key</label>
-              <input type="password" id="api_key" name="api_key" value="" placeholder="<%= settings.api_key_set ? 'Neuen Key eingeben (leer = unverändert)' : 'EventFrog API Key' %>" autocomplete="new-password" data-key-set="<%= settings.api_key_set ? '1' : '0' %>" data-mask="<%= apiKeyMask %>" />
+              <label>Organizer API Key (Bearer)</label>
+              <input type="password" id="api_key" name="api_key" value="" placeholder="<%= settings.api_key_set ? 'Neuen Key eingeben (leer = unverändert)' : 'Organizer API Read Key' %>" autocomplete="new-password" data-key-set="<%= settings.api_key_set ? '1' : '0' %>" data-mask="<%= apiKeyMask %>" />
+              <span class="hint">In Eventfrog: Einstellungen → API-Keys → Typ „Organizer API (Read)“ — nicht Public API / Embed</span>
             </div>
-            <div class="form-group">
-              <label>Event ID</label>
-              <input type="text" id="event_id" name="event_id" value="<%= settings.event_id || '' %>" placeholder="EventFrog Event ID" />
+            <div class="form-group form-group--wide">
+              <label>API-Verbindung testen</label>
+              <div class="api-test-row">
+                <input type="text" id="test_event_id" placeholder="Event-ID eines Screens" />
+                <button type="button" class="btn btn-secondary" onclick="testEventfrogApi()">Testen</button>
+              </div>
+              <pre id="api-test-result" class="api-test-result hidden"></pre>
             </div>
             <div class="form-group">
               <label>Show Title</label>
@@ -47,11 +52,76 @@
             <div class="form-group">
               <label>Auto-Refresh (Sekunden)</label>
               <input type="number" id="refresh_interval" name="refresh_interval" value="<%= settings.refresh_interval || '15' %>" min="5" max="300" />
-              <span class="hint">Live-Aktualisierung für Ticket- und Preis-Slides</span>
+              <span class="hint">Live-Aktualisierung für Ticket-Tabellen</span>
             </div>
           </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Layout: Header & Footer -->
+    <div class="card">
+      <div class="card-header">
+        <h2>🖼 Header & Footer</h2>
+      </div>
+      <div class="card-body">
+        <form id="layout-form">
+          <h3 class="layout-section-title">Header</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="header_enabled" name="header_enabled" <%= layout.header_enabled ? 'checked' : '' %> />
+                <span>Header anzeigen</span>
+              </label>
+            </div>
+            <div class="form-group form-group--wide">
+              <label>Titel (Mitte)</label>
+              <input type="text" id="header_title" name="header_title" value="<%= layout.header_title %>" placeholder="z. B. Weinmarkt 2026" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Logo (links)</label>
+            <input type="file" id="header_logo" name="header_logo" accept="image/*" />
+            <div class="layout-preview-row">
+              <% if (layout.header_logo) { %>
+                <img src="<%= layout.header_logo %>" alt="Header-Logo" class="layout-preview-img" id="header-logo-preview" />
+                <label class="checkbox-label">
+                  <input type="checkbox" id="remove_header_logo" name="remove_header_logo" />
+                  <span>Logo entfernen</span>
+                </label>
+              <% } else { %>
+                <img src="" alt="" class="layout-preview-img hidden" id="header-logo-preview" />
+              <% } %>
+            </div>
+            <span class="hint">Uhrzeit rechts (24h) wird automatisch angezeigt</span>
+          </div>
+
+          <h3 class="layout-section-title">Footer</h3>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="footer_enabled" name="footer_enabled" <%= layout.footer_enabled ? 'checked' : '' %> />
+              <span>Footer anzeigen</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>Logos (1–8, gleiche Höhe)</label>
+            <div id="footer-logos-list" class="footer-logos-admin">
+              <% layout.footer_logos.forEach((logo, i) => { %>
+                <div class="footer-logo-item" data-path="<%= logo %>">
+                  <img src="<%= logo %>" alt="Footer <%= i + 1 %>" />
+                  <button type="button" class="btn btn-sm btn-danger" onclick="removeFooterLogo(this)">Entfernen</button>
+                </div>
+              <% }) %>
+            </div>
+            <input type="file" id="footer_add" name="footer_add" accept="image/*" multiple />
+            <span class="hint" id="footer-count-hint"><%= layout.footer_logos.length %> / 8 Logos</span>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" onclick="saveLayout()">💾 Layout speichern</button>
           </div>
         </form>
       </div>
@@ -77,6 +147,7 @@
                   <tr>
                     <th>⠿</th>
                     <th>Name</th>
+                    <th>Event-ID</th>
                     <th>Type</th>
                     <th>Duration</th>
                     <th>Status</th>
@@ -88,6 +159,7 @@
                     <tr data-id="<%= screen.id %>">
                       <td class="drag-handle">⠿</td>
                       <td class="screen-name"><%= screen.name %></td>
+                      <td class="screen-event-id"><%= screen.event_id || '–' %></td>
                       <td><span class="badge badge-<%= screen.type %>"><%= screen.type %></span></td>
                       <td><%= screen.duration %>s</td>
                       <td>
@@ -128,11 +200,15 @@
             <div class="form-group">
               <label>Type <span class="required">*</span></label>
               <select id="f-type" name="type" required onchange="onTypeChange(this.value)">
-                <option value="tickets">Tickets (live capacity)</option>
-                <option value="prices">Prices (ticket categories)</option>
+                <option value="tickets">Tickets (Tabelle)</option>
                 <option value="qrcode">QR Code</option>
                 <option value="sponsor">Sponsor / Image</option>
               </select>
+            </div>
+            <div class="form-group" id="field-event-id">
+              <label>Eventfrog Event-ID <span class="required">*</span></label>
+              <input type="text" id="f-event-id" name="event_id" placeholder="z. B. 12345" />
+              <span class="hint">Pro Screen ein Event (Multi-Event)</span>
             </div>
             <div class="form-group">
               <label>Sort Order</label>
@@ -179,11 +255,6 @@
             <input type="url" id="f-qr-url" name="qr_url" placeholder="https://..." />
           </div>
 
-          <div class="form-group" id="field-event-id">
-            <label>Event ID Override <span class="hint">(leave blank to use global setting)</span></label>
-            <input type="text" id="f-event-id" name="event_id" placeholder="Optional event ID override" />
-          </div>
-
           <div class="form-group">
             <label class="checkbox-label">
               <input type="checkbox" id="f-active" name="active" value="true" checked />
@@ -203,5 +274,6 @@
   <div id="toast" class="toast hidden"></div>
 
   <script src="/js/admin.js"></script>
+  <script src="/js/admin-layout.js"></script>
 </body>
 </html>

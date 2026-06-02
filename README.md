@@ -5,8 +5,9 @@ Webanwendung für einen Linux-Webserver mit zwei Ebenen: eine **öffentliche Vol
 ## Funktionen
 
 - **Slideshow** (`/`): Vollbild-Anzeige, automatischer Wechsel, Tastatursteuerung (Pfeiltasten, Leertaste, `F` für Fullscreen)
-- **Ticket-Karten**: Jede Ticketkategorie als eigene Karte (Verfügbarkeit bzw. Preis)
-- **Auto-Refresh**: Live-Aktualisierung der Ticket- und Preis-Slides (Intervall in Sekunden, konfigurierbar)
+- **Ticket-Tabelle**: Pro Screen eine Event-ID, Anzeige als Tabelle (Kategorie, freie Plätze, Preis)
+- **Auto-Refresh**: Live-Aktualisierung der Ticket-Screens (Intervall in Sekunden, konfigurierbar)
+- **Multi-Event**: Jedes Event über die Event-ID am jeweiligen Screen
 - **Admin** (`/admin`): Screens verwalten, Eventfrog-Anbindung, Uploads — nur nach Login
 - **Auth**: Benutzer in PostgreSQL, Session-basiert, API-Key wird nicht im Klartext ausgeliefert
 
@@ -107,9 +108,15 @@ Auf dem Server empfiehlt sich **PM2** (siehe Deployment). Die App lauscht auf `h
 
 ## Admin konfigurieren
 
+Unter **Header & Footer**:
+
+- **Header**: Logo links, Titel Mitte, Uhrzeit rechts (24h, automatisch)
+- **Footer**: 1–8 Logos, einheitliche Höhe, Seitenverhältnis bleibt erhalten
+
 Nach dem Login unter **General Settings**:
 
-- **API Key** / **Event ID**: Eventfrog-Zugang (Key nur neu setzen, wenn du ihn änderst — leeres Feld lässt den gespeicherten Key unverändert)
+- **Organizer API Key (Bearer)**: Schlüssel vom Typ „Organizer API (Read)“ in Eventfrog (nicht Public API / Embed). Key nur neu setzen, wenn du ihn änderst.
+- **API testen**: Event-ID eingeben und „Testen“ — zeigt, ob Kategorien geladen werden.
 - **Show Title**: Browser-Titel der Slideshow
 - **Currency**: Währung für Preisanzeige (z. B. `CHF`)
 - **Auto-Refresh**: Sekunden zwischen Live-Aktualisierungen (min. 5, Standard 15)
@@ -118,12 +125,11 @@ Unter **Screens** Slides anlegen und per Drag & Drop sortieren:
 
 | Typ | Inhalt |
 |-----|--------|
-| `tickets` | Karten pro Ticketkategorie mit Verfügbarkeit (Fallback: Gesamt-Event) |
-| `prices` | Karten mit Preis und Verfügbarkeit pro Kategorie |
+| `tickets` | Tabelle: Kategoriename, freie Plätze, Preis (**Event-ID am Screen Pflicht**) |
 | `qrcode` | QR-Code zu einer Buchungs-URL |
 | `sponsor` | Bild-Upload + optionaler Text |
 
-Pro Screen: Dauer, Farben, Hintergrundbild, Reihenfolge, aktiv/inaktiv. Optional **Event ID Override** pro Screen.
+Pro Screen: Dauer, Farben, Hintergrundbild, Reihenfolge, aktiv/inaktiv. Bei Tickets: **Eventfrog Event-ID** (ein Event pro Screen).
 
 Uploads landen in `src/public/uploads/` (beim Deploy nicht überschreiben).
 
@@ -185,7 +191,7 @@ location / {
 | Problem | Lösung |
 |---------|--------|
 | „Nicht angemeldet“ im Admin | Unter `/admin/login` anmelden; `SESSION_SECRET` prüfen |
-| Keine Ticketdaten | API-Key und Event-ID in den Settings; Eventfrog-API erreichbar |
+| Keine Ticketdaten | API-Key in den Settings; **Event-ID am Screen** gesetzt; Eventfrog-API erreichbar |
 | DB-Verbindung schlägt fehl | `DB_*` in `.env`, Firewall, PostgreSQL `pg_hba.conf` |
 | Kein Admin-Login möglich | `npm run create-user` erneut ausführen (anderer Username wenn belegt) |
 | Uploads fehlen nach Deploy | `src/public/uploads/` auf dem Server persistieren (nicht löschen) |

@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { getEvent, getEventCategories } = require('../eventfrog');
+const { getEvent, getEventCategories, parseCategories } = require('../eventfrog');
 const QRCode = require('qrcode');
 const { requireAuth, maskSettings, shouldUpdateApiKey } = require('../auth');
 
@@ -30,48 +30,47 @@ const upload = multer({
   },
 });
 
-function parseCategories(data) {
-  if (!data) return [];
-  return data.categories || data.ticketCategories || data.ticketcategories
-    || (Array.isArray(data) ? data : []);
-}
-
-async function loadEventfrogSettings(eventIdOverride) {
+async function loadEventfrogSettings(eventIdFromQuery) {
+  const eventId = (eventIdFromQuery || '').trim();
+  if (!eventId) {
+    return { error: 'event_id query parameter required' };
+  }
   const { rows: settingRows } = await pool.query(
-    "SELECT key, value FROM settings WHERE key IN ('api_key','event_id')"
+    "SELECT key, value FROM settings WHERE key = 'api_key'"
   );
-  const settings = Object.fromEntries(settingRows.map(r => [r.key, r.value]));
-  const eventId = eventIdOverride || settings.event_id;
-  return { apiKey: settings.api_key, eventId };
+  const apiKey = settingRows[0]?.value;
+  if (!apiKey || !String(apiKey).trim()) {
+    return { error: 'API-Key nicht konfiguriert (Organizer API Read)' };
+  }
+  return { apiKey: String(apiKey).trim(), eventId };
 }
 
 // ---- Öffentlich (Slideshow) ----
 
 router.get('/eventfrog/event', async (req, res) => {
   try {
-    const { apiKey, eventId } = await loadEventfrogSettings(req.query.event_id);
-    if (!apiKey || !eventId) {
-      return res.status(400).json({ error: 'API key or Event ID not configured' });
-    }
+    const cfg = await loadEventfrogSettings(req.query.event_id);
+    if (cfg.error) return res.status(400).json({ error: cfg.error });
+    const { apiKey, eventId } = cfg;
     const data = await getEvent(apiKey, eventId);
     res.json(data);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: err.message });
+    console.error('eventfrog/event:', err.message);
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
 router.get('/eventfrog/categories', async (req, res) => {
   try {
-    const { apiKey, eventId } = await loadEventfrogSettings(req.query.event_id);
-    if (!apiKey || !eventId) {
-      return res.status(400).json({ error: 'API key or Event ID not configured' });
-    }
+    const cfg = await loadEventfrogSettings(req.query.event_id);
+    if (cfg.error) return res.status(400).json({ error: cfg.error });
+    const { apiKey, eventId } = cfg;
     const data = await getEventCategories(apiKey, eventId);
-    res.json(data);
+    const categories = parseCategories(data);
+    res.json({ categories, raw: data });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: err.message });
+    console.error('eventfrog/categories:', err.message);
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -92,6 +91,24 @@ router.use('/auth', require('./auth'));
 
 router.use(requireAuth);
 
+router.get('/eventfrog/test', async (req, res) => {
+  try {
+    const cfg = await loadEventfrogSettings(req.query.event_id);
+    if (cfg.error) return res.status(400).json({ ok: false, error: cfg.error });
+    const { apiKey, eventId } = cfg;
+    const data = await getEventCategories(apiKey, eventId);
+    const categories = parseCategories(data);
+    res.json({
+      ok: true,
+      event_id: eventId,
+      categories_count: categories.length,
+      categories: categories.slice(0, 3),
+    });
+  } catch (err) {
+    res.status(err.status || 500).json({ ok: false, error: err.message });
+  }
+});
+
 router.get('/settings', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT key, value FROM settings');
@@ -104,8 +121,8 @@ router.get('/settings', async (req, res) => {
 
 router.post('/settings', async (req, res) => {
   try {
-    const { api_key, event_id, show_title, currency, refresh_interval } = req.body;
-    const updates = { event_id, show_title, currency, refresh_interval };
+    const { api_key, show_title, currency, refresh_interval } = req.body;
+    const updates = { show_title, currency, refresh_interval };
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         await pool.query(

@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const pool = require('./db');
+const { parseFooterLogos, isTruthy } = require('./layout');
 
 const SALT_ROUNDS = 12;
 const API_KEY_MASK = '********';
@@ -40,7 +41,11 @@ async function createUser(username, password) {
   return rows[0];
 }
 
-const PUBLIC_SETTING_KEYS = ['show_title', 'currency', 'refresh_interval', 'event_id'];
+const PUBLIC_SETTING_KEYS = [
+  'show_title', 'currency', 'refresh_interval',
+  'header_enabled', 'header_title', 'header_logo',
+  'footer_enabled', 'footer_logos',
+];
 
 function maskSettings(map) {
   const out = { ...map };
@@ -55,6 +60,11 @@ function publicSettings(map) {
     if (map[key] !== undefined) out[key] = map[key];
   }
   if (!out.refresh_interval) out.refresh_interval = '15';
+  out.header_enabled = isTruthy(out.header_enabled !== undefined ? out.header_enabled : 'true');
+  out.footer_enabled = isTruthy(out.footer_enabled !== undefined ? out.footer_enabled : 'true');
+  out.header_title = out.header_title || '';
+  out.header_logo = out.header_logo || '';
+  out.footer_logos = parseFooterLogos(out.footer_logos);
   return out;
 }
 
