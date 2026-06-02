@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Anmelden – EventFrog Screen</title>
+  <link rel="stylesheet" href="/css/admin.css" />
+</head>
+<body class="login-page">
+  <div class="login-card">
+    <h1>EventFrog Screen</h1>
+    <p class="login-sub">Admin-Anmeldung</p>
+    <form id="login-form">
+      <div class="form-group">
+        <label for="username">Benutzername</label>
+        <input type="text" id="username" name="username" required autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label for="password">Passwort</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password" />
+      </div>
+      <p id="login-error" class="login-error hidden"></p>
+      <button type="submit" class="btn btn-primary btn-block">Anmelden</button>
+    </form>
+  </div>
+  <script>
+    const NEXT = <%- JSON.stringify(next || '/admin') %>;
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById('login-error');
+      errEl.classList.add('hidden');
+      try {
+        const r = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            username: document.getElementById('username').value,
+            password: document.getElementById('password').value,
+          }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Anmeldung fehlgeschlagen');
+        window.location.href = NEXT.startsWith('/') ? NEXT : '/admin';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

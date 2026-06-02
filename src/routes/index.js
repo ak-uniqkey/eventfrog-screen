@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
+const { publicSettings } = require('../auth');
 
 router.get('/', async (req, res) => {
   try {
@@ -8,7 +9,7 @@ router.get('/', async (req, res) => {
       'SELECT * FROM screens WHERE active = true ORDER BY sort_order ASC'
     );
     const { rows: settings } = await pool.query('SELECT key, value FROM settings');
-    const settingsMap = Object.fromEntries(settings.map(s => [s.key, s.value]));
+    const settingsMap = publicSettings(Object.fromEntries(settings.map(s => [s.key, s.value])));
     res.render('index', { screens, settings: settingsMap });
   } catch (err) {
     console.error(err);

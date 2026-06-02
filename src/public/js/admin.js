@@ -1,6 +1,15 @@
 // ---- State ----
 let editingId = null;
 
+async function apiFetch(url, options = {}) {
+  const r = await fetch(url, { credentials: 'same-origin', ...options });
+  if (r.status === 401) {
+    window.location.href = '/admin/login?next=' + encodeURIComponent(window.location.pathname);
+    throw new Error('Nicht angemeldet');
+  }
+  return r;
+}
+
 // ---- Toast ----
 function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
@@ -10,23 +19,35 @@ function showToast(msg, type = 'success') {
   t._timer = setTimeout(() => { t.className = 'toast hidden'; }, 3000);
 }
 
+// ---- Logout ----
+document.getElementById('btn-logout')?.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/auth/logout', { method: 'POST' });
+  } catch { /* redirect on 401 anyway */ }
+  window.location.href = '/admin/login';
+});
+
 // ---- Settings ----
 document.getElementById('settings-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const apiKeyEl = document.getElementById('api_key');
+  const apiKeyVal = apiKeyEl.value.trim();
   const data = {
-    api_key: document.getElementById('api_key').value,
     event_id: document.getElementById('event_id').value,
     show_title: document.getElementById('show_title').value,
     currency: document.getElementById('currency').value,
+    refresh_interval: document.getElementById('refresh_interval').value,
   };
+  if (apiKeyVal) data.api_key = apiKeyVal;
   try {
-    const r = await fetch('/api/settings', {
+    const r = await apiFetch('/api/settings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
     if (!r.ok) throw new Error((await r.json()).error);
-    showToast('Settings saved!');
+    apiKeyEl.value = '';
+    showToast('Einstellungen gespeichert!');
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -121,7 +142,7 @@ async function saveScreen() {
     const id = editingId;
     const url = id ? `/api/screens/${id}` : '/api/screens';
     const method = id ? 'PUT' : 'POST';
-    const r = await fetch(url, { method, body: formData });
+    const r = await apiFetch(url, { method, body: formData });
     if (!r.ok) throw new Error((await r.json()).error || 'Save failed');
     showToast(id ? 'Screen updated!' : 'Screen created!');
     closeModal();
@@ -134,7 +155,7 @@ async function saveScreen() {
 // ---- Edit Screen ----
 async function editScreen(id) {
   try {
-    const r = await fetch('/api/screens');
+    const r = await apiFetch('/api/screens');
     const screens = await r.json();
     const screen = screens.find(s => s.id === id);
     if (screen) openModal(screen);
@@ -156,7 +177,7 @@ async function deleteScreen(btnOrId, name) {
   }
   if (!confirm(`Delete screen "${screenName}"?`)) return;
   try {
-    const r = await fetch(`/api/screens/${id}`, { method: 'DELETE' });
+    const r = await apiFetch(`/api/screens/${id}`, { method: 'DELETE' });
     if (!r.ok) throw new Error((await r.json()).error);
     showToast('Screen deleted');
     reloadScreens();
@@ -168,7 +189,7 @@ async function deleteScreen(btnOrId, name) {
 // ---- Reload Screens List ----
 async function reloadScreens() {
   try {
-    const r = await fetch('/api/screens');
+    const r = await apiFetch('/api/screens');
     const screens = await r.json();
     const container = document.getElementById('screens-list');
 
@@ -246,7 +267,7 @@ async function saveOrder() {
   const rows = Array.from(tbody.querySelectorAll('tr'));
   const order = rows.map((r, i) => ({ id: parseInt(r.dataset.id), sort_order: i }));
   try {
-    await fetch('/api/screens/reorder', {
+    await apiFetch('/api/screens/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order }),

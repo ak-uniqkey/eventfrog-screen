@@ -7,6 +7,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { getEvent, getEventCategories } = require('../eventfrog');
 const QRCode = require('qrcode');
+const { requireAuth, maskSettings, shouldUpdateApiKey } = require('../auth');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -29,11 +30,73 @@ const upload = multer({
   },
 });
 
+function parseCategories(data) {
+  if (!data) return [];
+  return data.categories || data.ticketCategories || data.ticketcategories
+    || (Array.isArray(data) ? data : []);
+}
+
+async function loadEventfrogSettings(eventIdOverride) {
+  const { rows: settingRows } = await pool.query(
+    "SELECT key, value FROM settings WHERE key IN ('api_key','event_id')"
+  );
+  const settings = Object.fromEntries(settingRows.map(r => [r.key, r.value]));
+  const eventId = eventIdOverride || settings.event_id;
+  return { apiKey: settings.api_key, eventId };
+}
+
+// ---- Öffentlich (Slideshow) ----
+
+router.get('/eventfrog/event', async (req, res) => {
+  try {
+    const { apiKey, eventId } = await loadEventfrogSettings(req.query.event_id);
+    if (!apiKey || !eventId) {
+      return res.status(400).json({ error: 'API key or Event ID not configured' });
+    }
+    const data = await getEvent(apiKey, eventId);
+    res.json(data);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/eventfrog/categories', async (req, res) => {
+  try {
+    const { apiKey, eventId } = await loadEventfrogSettings(req.query.event_id);
+    if (!apiKey || !eventId) {
+      return res.status(400).json({ error: 'API key or Event ID not configured' });
+    }
+    const data = await getEventCategories(apiKey, eventId);
+    res.json(data);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/qrcode', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const qr = await QRCode.toDataURL(url, { width: 400, margin: 2 });
+    res.json({ qr });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.use('/auth', require('./auth'));
+
+// ---- Geschützt (Admin) ----
+
+router.use(requireAuth);
+
 router.get('/settings', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT key, value FROM settings');
     const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
-    res.json(map);
+    res.json(maskSettings(map));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -41,15 +104,21 @@ router.get('/settings', async (req, res) => {
 
 router.post('/settings', async (req, res) => {
   try {
-    const { api_key, event_id, show_title, currency } = req.body;
-    const updates = { api_key, event_id, show_title, currency };
+    const { api_key, event_id, show_title, currency, refresh_interval } = req.body;
+    const updates = { event_id, show_title, currency, refresh_interval };
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         await pool.query(
           'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()',
-          [key, value]
+          [key, String(value)]
         );
       }
+    }
+    if (shouldUpdateApiKey(api_key)) {
+      await pool.query(
+        'INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()',
+        ['api_key', String(api_key).trim()]
+      );
     }
     res.json({ success: true });
   } catch (err) {
@@ -167,49 +236,6 @@ router.post('/screens/reorder', async (req, res) => {
 router.post('/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   res.json({ path: `/uploads/${req.file.filename}` });
-});
-
-router.get('/eventfrog/event', async (req, res) => {
-  try {
-    const { rows: settingRows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('api_key','event_id')");
-    const settings = Object.fromEntries(settingRows.map(r => [r.key, r.value]));
-    const eventId = req.query.event_id || settings.event_id;
-    if (!settings.api_key || !eventId) {
-      return res.status(400).json({ error: 'API key or Event ID not configured' });
-    }
-    const data = await getEvent(settings.api_key, eventId);
-    res.json(data);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/eventfrog/categories', async (req, res) => {
-  try {
-    const { rows: settingRows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('api_key','event_id')");
-    const settings = Object.fromEntries(settingRows.map(r => [r.key, r.value]));
-    const eventId = req.query.event_id || settings.event_id;
-    if (!settings.api_key || !eventId) {
-      return res.status(400).json({ error: 'API key or Event ID not configured' });
-    }
-    const data = await getEventCategories(settings.api_key, eventId);
-    res.json(data);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/qrcode', async (req, res) => {
-  const { url } = req.query;
-  if (!url) return res.status(400).json({ error: 'url required' });
-  try {
-    const qr = await QRCode.toDataURL(url, { width: 400, margin: 2 });
-    res.json({ qr });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
 module.exports = router;

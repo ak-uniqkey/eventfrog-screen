@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -13,7 +13,9 @@
       <span>EventFrog Screen</span>
     </div>
     <div class="nav-links">
-      <a href="/" target="_blank" class="btn btn-outline">👁 View Slideshow</a>
+      <span class="nav-user"><%= username %></span>
+      <a href="/" target="_blank" class="btn btn-outline">👁 Slideshow</a>
+      <button type="button" class="btn btn-outline" id="btn-logout">Abmelden</button>
     </div>
   </nav>
 
@@ -28,7 +30,7 @@
           <div class="form-grid">
             <div class="form-group">
               <label>API Key</label>
-              <input type="password" id="api_key" name="api_key" value="<%= settings.api_key || '' %>" placeholder="EventFrog API Key" autocomplete="off" />
+              <input type="password" id="api_key" name="api_key" value="" placeholder="<%= settings.api_key_set ? 'Neuen Key eingeben (leer = unverändert)' : 'EventFrog API Key' %>" autocomplete="new-password" data-key-set="<%= settings.api_key_set ? '1' : '0' %>" data-mask="<%= apiKeyMask %>" />
             </div>
             <div class="form-group">
               <label>Event ID</label>
@@ -41,6 +43,11 @@
             <div class="form-group">
               <label>Currency</label>
               <input type="text" id="currency" name="currency" value="<%= settings.currency || 'CHF' %>" placeholder="e.g. CHF, EUR, USD" maxlength="5" />
+            </div>
+            <div class="form-group">
+              <label>Auto-Refresh (Sekunden)</label>
+              <input type="number" id="refresh_interval" name="refresh_interval" value="<%= settings.refresh_interval || '15' %>" min="5" max="300" />
+              <span class="hint">Live-Aktualisierung für Ticket- und Preis-Slides</span>
             </div>
           </div>
           <div class="form-actions">
