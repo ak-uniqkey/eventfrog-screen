@@ -6,10 +6,14 @@ const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
+if (!process.env.PORT) {
+  throw new Error('PORT environment variable is required. Configure PORT in deployment or .env.');
+}
+
 const PORT = Number.parseInt(process.env.PORT, 10);
 
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
-  throw new Error('PORT environment variable must be set to a valid port (1-65535). Configure PORT in deployment or .env.');
+  throw new Error('PORT environment variable must be a valid port number (1-65535).');
 }
 
 app.set('view engine', 'ejs');
