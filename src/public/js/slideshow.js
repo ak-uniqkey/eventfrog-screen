@@ -83,16 +83,35 @@
 
   function parseCategories(data) {
     if (!data) return [];
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+      return data.categories;
+    }
+    const source = data.raw !== undefined ? data.raw : data;
+    if (Array.isArray(source)) return source;
+    const paths = [
+      source?.categories,
+      source?.ticketCategories,
+      source?.ticketcategories,
+      source?.datasets,
+      source?.content,
+      source?.items,
+      source?.data?.ticketCategories,
+      source?.event?.ticketCategories,
+    ];
+    for (const list of paths) {
+      if (Array.isArray(list) && list.length > 0) return list;
+    }
     if (Array.isArray(data.categories)) return data.categories;
-    if (Array.isArray(data)) return data;
-    return data.ticketCategories || data.ticketcategories
-      || data.items || [];
+    return [];
+  }
+
+  function categoryName(cat) {
+    return cat.name || cat.title || cat.label || '–';
   }
 
   function categoryAvailable(cat) {
-    const n = cat.available_capacity ?? cat.availableCapacity
+    return cat.available_capacity ?? cat.availableCapacity
       ?? cat.remainingCapacity ?? cat.freeSeats ?? cat.available;
-    return n;
   }
 
   function categoryPriceValue(cat) {
@@ -136,6 +155,7 @@
   function categoryPrice(cat) {
     const val = categoryPriceValue(cat);
     if (val !== undefined) return formatPrice(val);
+    if (cat.priceText) return String(cat.priceText);
     return '–';
   }
 
@@ -166,13 +186,13 @@
         const soldOut = available === 0;
         return `
           <tr class="${soldOut ? 'sold-out' : ''}">
-            <td class="col-name">${escapeHtml(cat.name || cat.title || '–')}</td>
+            <td class="col-name">${escapeHtml(categoryName(cat))}</td>
             <td class="col-available">${escapeHtml(availabilityLabel(available))}</td>
             <td class="col-price">${escapeHtml(categoryPrice(cat))}</td>
           </tr>`;
       }).join('');
     } else {
-      rows = '<tr><td colspan="3" class="no-data">Keine Kategorien für Event ' + escapeHtml(eventId) + '</td></tr>';
+      rows = `<tr><td colspan="3" class="no-data">Keine Ticketkategorien für Event ${escapeHtml(eventId)}. Im Admin unter „API testen“ prüfen — ist Ticketverkauf für dieses Event aktiv?</td></tr>`;
     }
 
     return `

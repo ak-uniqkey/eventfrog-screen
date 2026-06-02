@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { getEvent, getEventCategories, parseCategories } = require('../eventfrog');
+const { fetchCategoriesForEvent, getEvent } = require('../eventfrog');
 const QRCode = require('qrcode');
 const { requireAuth, maskSettings, shouldUpdateApiKey } = require('../auth');
 
@@ -65,9 +65,8 @@ router.get('/eventfrog/categories', async (req, res) => {
     const cfg = await loadEventfrogSettings(req.query.event_id);
     if (cfg.error) return res.status(400).json({ error: cfg.error });
     const { apiKey, eventId } = cfg;
-    const data = await getEventCategories(apiKey, eventId);
-    const categories = parseCategories(data);
-    res.json({ categories, raw: data });
+    const { categories, raw } = await fetchCategoriesForEvent(apiKey, eventId);
+    res.json({ categories, raw });
   } catch (err) {
     console.error('eventfrog/categories:', err.message);
     res.status(err.status || 500).json({ error: err.message });
@@ -96,13 +95,15 @@ router.get('/eventfrog/test', async (req, res) => {
     const cfg = await loadEventfrogSettings(req.query.event_id);
     if (cfg.error) return res.status(400).json({ ok: false, error: cfg.error });
     const { apiKey, eventId } = cfg;
-    const data = await getEventCategories(apiKey, eventId);
-    const categories = parseCategories(data);
+    const { categories, raw } = await fetchCategoriesForEvent(apiKey, eventId);
     res.json({
       ok: true,
       event_id: eventId,
       categories_count: categories.length,
-      categories: categories.slice(0, 3),
+      categories: categories.slice(0, 5),
+      raw_type: Array.isArray(raw) ? 'array' : typeof raw,
+      raw_keys: raw && typeof raw === 'object' && !Array.isArray(raw) ? Object.keys(raw) : [],
+      raw_preview: JSON.stringify(raw).slice(0, 800),
     });
   } catch (err) {
     res.status(err.status || 500).json({ ok: false, error: err.message });
