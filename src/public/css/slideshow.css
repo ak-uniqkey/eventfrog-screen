@@ -322,8 +322,22 @@ body {
   max-width: 42vw;
 }
 
-.tickets-barcode-wrap {
+.tickets-barcode-link {
   flex: 0 0 auto;
+  line-height: 0;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tickets-barcode-link:hover,
+.tickets-barcode-link:focus-visible {
+  transform: scale(1.03);
+  box-shadow: 0 0 16px rgba(255, 140, 0, 0.45);
+  outline: none;
+}
+
+.tickets-barcode-wrap {
   background: #fff;
   padding: 1.2vh 1.2vw;
   border-radius: 8px;

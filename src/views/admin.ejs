@@ -47,7 +47,8 @@
             </div>
             <div class="form-group">
               <label>Auto-Refresh (Sekunden)</label>
-              <input type="number" id="refresh_interval" name="refresh_interval" value="<%= settings.refresh_interval || '15' %>" min="5" max="300" />
+              <input type="number" id="refresh_interval" name="refresh_interval" value="<%= settings.refresh_interval || '30' %>" min="30" max="300" />
+              <span class="hint">Mindestens 30 Sekunden (Eventfrog API Rate-Limit)</span>
               <span class="hint">Live-Aktualisierung für Ticket-Tabellen</span>
             </div>
           </div>

@@ -1,6 +1,8 @@
 const axios = require('axios');
 
 const ORGANIZER_BASE = 'https://api.eventfrog.net/organizer/v1';
+const CACHE_TTL_MS = parseInt(process.env.EVENTFROG_CACHE_TTL_MS || '60000', 10);
+const responseCache = new Map();
 
 function buildHeaders(apiKey) {
   return {
@@ -33,12 +35,52 @@ async function organizerGet(apiKey, resourcePath) {
   }
 }
 
+function getFreshCache(cacheKey) {
+  const entry = responseCache.get(cacheKey);
+  if (!entry) return null;
+  if (Date.now() - entry.at > CACHE_TTL_MS) return null;
+  return entry.data;
+}
+
+function getStaleCache(cacheKey) {
+  return responseCache.get(cacheKey)?.data ?? null;
+}
+
+function setCache(cacheKey, data) {
+  responseCache.set(cacheKey, { data, at: Date.now() });
+}
+
+async function withEventfrogCache(cacheKey, fetcher) {
+  const fresh = getFreshCache(cacheKey);
+  if (fresh) return fresh;
+  try {
+    const data = await fetcher();
+    setCache(cacheKey, data);
+    return data;
+  } catch (err) {
+    if (err.status === 429) {
+      const stale = getStaleCache(cacheKey);
+      if (stale) {
+        console.warn(`eventfrog 429, verwende Cache: ${cacheKey}`);
+        return stale;
+      }
+    }
+    throw err;
+  }
+}
+
 async function getEvent(apiKey, eventId) {
-  return organizerGet(apiKey, `/events/${encodeURIComponent(eventId)}`);
+  const cacheKey = `event:${eventId}`;
+  return withEventfrogCache(cacheKey, () =>
+    organizerGet(apiKey, `/events/${encodeURIComponent(eventId)}`)
+  );
 }
 
 async function getEventCategories(apiKey, eventId) {
-  return organizerGet(apiKey, `/events/${encodeURIComponent(eventId)}/ticketcategories`);
+  const cacheKey = `categories:${eventId}`;
+  return withEventfrogCache(cacheKey, () =>
+    organizerGet(apiKey, `/events/${encodeURIComponent(eventId)}/ticketcategories`)
+  );
 }
 
 async function getTicketTransactionsPage(apiKey, eventId, page = 1, perPage = 100) {
@@ -286,16 +328,24 @@ function normalizeCategories(list, soldByCategory = null) {
 }
 
 async function fetchSoldByCategory(apiKey, eventId) {
+  const cacheKey = `sold:${eventId}`;
   try {
-    const transactions = await getAllTicketTransactions(apiKey, eventId);
-    return countActiveTicketsByCategory(transactions);
+    return await withEventfrogCache(cacheKey, async () => {
+      const transactions = await getAllTicketTransactions(apiKey, eventId);
+      return countActiveTicketsByCategory(transactions);
+    });
   } catch (err) {
     console.warn('eventfrog tickettransactions:', err.message);
-    return null;
+    const stale = getStaleCache(cacheKey);
+    return stale ?? null;
   }
 }
 
 async function fetchCategoriesForEvent(apiKey, eventId) {
+  const bundleKey = `bundle:${eventId}`;
+  const cached = getFreshCache(bundleKey);
+  if (cached) return cached;
+
   const [ticketData, soldByCategory] = await Promise.all([
     getEventCategories(apiKey, eventId),
     fetchSoldByCategory(apiKey, eventId),
@@ -311,11 +361,13 @@ async function fetchCategoriesForEvent(apiKey, eventId) {
     }
   }
 
-  return {
+  const result = {
     categories: normalizeCategories(rawList, soldByCategory),
     raw: ticketData,
     sold_by_category: soldByCategory,
   };
+  setCache(bundleKey, result);
+  return result;
 }
 
 module.exports = {

@@ -124,7 +124,10 @@ router.get('/settings', async (req, res) => {
 router.post('/settings', async (req, res) => {
   try {
     const { api_key, show_title, refresh_interval } = req.body;
-    const updates = { show_title, refresh_interval };
+    const refreshSec = refresh_interval !== undefined
+      ? Math.max(30, Math.min(300, parseInt(refresh_interval, 10) || 30))
+      : undefined;
+    const updates = { show_title, refresh_interval: refreshSec !== undefined ? String(refreshSec) : undefined };
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         await pool.query(

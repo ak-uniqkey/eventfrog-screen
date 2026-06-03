@@ -59,7 +59,7 @@ function publicSettings(map) {
   for (const key of PUBLIC_SETTING_KEYS) {
     if (map[key] !== undefined) out[key] = map[key];
   }
-  if (!out.refresh_interval) out.refresh_interval = '15';
+  if (!out.refresh_interval) out.refresh_interval = '30';
   out.header_enabled = isTruthy(out.header_enabled !== undefined ? out.header_enabled : 'true');
   out.footer_enabled = isTruthy(out.footer_enabled !== undefined ? out.footer_enabled : 'true');
   out.header_title = out.header_title || '';

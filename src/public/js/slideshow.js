@@ -6,7 +6,22 @@
   let renderToken = 0;
   let goToToken = 0;
 
-  const refreshSeconds = Math.max(5, parseInt(SETTINGS.refresh_interval, 10) || 15);
+  const refreshSeconds = Math.max(30, parseInt(SETTINGS.refresh_interval, 10) || 30);
+
+  const clientCacheTtlMs = 55000;
+  const eventSummaryCache = new Map();
+  const categoriesCache = new Map();
+  const barcodeCache = new Map();
+
+  function readClientCache(map, key) {
+    const entry = map.get(key);
+    if (!entry || Date.now() - entry.at > clientCacheTtlMs) return null;
+    return entry.data;
+  }
+
+  function writeClientCache(map, key, data) {
+    map.set(key, { at: Date.now(), data });
+  }
 
   function formatClock() {
     return new Date().toLocaleTimeString('de-CH', {
@@ -143,41 +158,68 @@
     return screen.type === 'tickets' || screen.type === 'prices';
   }
 
-  async function fetchCategories(eventId) {
+  async function fetchCategories(eventId, { useCache = true } = {}) {
     const eid = (eventId || '').trim();
     if (!eid) return { error: 'Keine Event-ID' };
+    if (useCache) {
+      const cached = readClientCache(categoriesCache, eid);
+      if (cached) return cached;
+    }
     try {
       const r = await fetch(`/api/eventfrog/categories?event_id=${encodeURIComponent(eid)}`);
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) return { error: data.error || `API-Fehler ${r.status}` };
+      if (!r.ok) {
+        const stale = readClientCache(categoriesCache, eid);
+        if (stale) return stale;
+        return { error: data.error || `API-Fehler ${r.status}` };
+      }
+      writeClientCache(categoriesCache, eid, data);
       return data;
     } catch (e) {
+      const stale = readClientCache(categoriesCache, eid);
+      if (stale) return stale;
       return { error: e.message || 'Netzwerkfehler' };
     }
   }
 
-  async function fetchEventSummary(eventId) {
+  async function fetchEventSummary(eventId, { useCache = true } = {}) {
     const eid = (eventId || '').trim();
     if (!eid) return { error: 'Keine Event-ID' };
+    if (useCache) {
+      const cached = readClientCache(eventSummaryCache, eid);
+      if (cached) return cached;
+    }
     try {
       const r = await fetch(`/api/eventfrog/event?event_id=${encodeURIComponent(eid)}`);
       const data = await r.json().catch(() => ({}));
-      if (!r.ok) return { error: data.error || `API-Fehler ${r.status}` };
-      return data.event || null;
+      if (!r.ok) {
+        const stale = readClientCache(eventSummaryCache, eid);
+        if (stale) return stale;
+        return { error: data.error || `API-Fehler ${r.status}` };
+      }
+      const summary = data.event || null;
+      if (summary) writeClientCache(eventSummaryCache, eid, summary);
+      return summary;
     } catch (e) {
+      const stale = readClientCache(eventSummaryCache, eid);
+      if (stale) return stale;
       return { error: e.message || 'Netzwerkfehler' };
     }
   }
 
   async function fetchBarcodeDataUrl(url) {
     if (!url) return '';
+    const cached = readClientCache(barcodeCache, url);
+    if (cached) return cached;
     try {
       const r = await fetch(`/api/qrcode?url=${encodeURIComponent(url)}`);
-      if (!r.ok) return '';
+      if (!r.ok) return readClientCache(barcodeCache, url) || '';
       const data = await r.json();
-      return data.qr || '';
+      const qr = data.qr || '';
+      if (qr) writeClientCache(barcodeCache, url, qr);
+      return qr;
     } catch {
-      return '';
+      return readClientCache(barcodeCache, url) || '';
     }
   }
 
@@ -224,10 +266,12 @@
     if (!barcode) return '';
     return `
       <div class="tickets-reservation">
-        <p class="tickets-reservation-text">${escapeHtml('Reservieren Sie\njetzt online')}</p>
-        <div class="tickets-barcode-wrap">
-          <img src="${barcode}" class="tickets-barcode" alt="Barcode zur Reservierung" />
-        </div>
+        <p class="tickets-reservation-text">${escapeHtml('Reservieren Sie\njetzt online!')}</p>
+        <a href="${escapeHtml(url)}" class="tickets-barcode-link" target="_blank" rel="noopener noreferrer" title="Reservierung im Browser öffnen">
+          <div class="tickets-barcode-wrap">
+            <img src="${barcode}" class="tickets-barcode" alt="Barcode zur Reservierung" />
+          </div>
+        </a>
       </div>`;
   }
 
@@ -257,6 +301,42 @@
     if (val !== undefined) return formatPrice(val);
     if (cat.priceText) return String(cat.priceText);
     return '–';
+  }
+
+  function buildTicketTableRows(categories, eventId) {
+    if (categories.length === 0) {
+      return `<tr><td colspan="4" class="no-data">Keine Ticketkategorien für Event ${escapeHtml(eventId)}. Im Admin unter „API testen“ prüfen — ist Ticketverkauf für dieses Event aktiv?</td></tr>`;
+    }
+    return categories.map(cat => {
+      const available = categoryAvailable(cat);
+      const total = categoryTotalCapacity(cat);
+      const soldOut = available === 0;
+      if (soldOut) {
+        return `
+          <tr class="sold-out">
+            <td class="col-name">${escapeHtml(categoryName(cat))}</td>
+            <td colspan="3" class="col-sold-out">Ausverkauft</td>
+          </tr>`;
+      }
+      const lowAvail = isLowAvailability(available);
+      return `
+          <tr${lowAvail ? ' class="availability-low"' : ''}>
+            <td class="col-name">${escapeHtml(categoryName(cat))}</td>
+            <td class="col-available${lowAvail ? ' availability-low' : ''}">${escapeHtml(availabilityLabel(available))}</td>
+            <td class="col-total">${escapeHtml(capacityLabel(total))}</td>
+            <td class="col-price">${escapeHtml(categoryPrice(cat))}</td>
+          </tr>`;
+    }).join('');
+  }
+
+  async function refreshTicketTableOnly(screen) {
+    const eventId = (screen.event_id || '').trim();
+    if (!eventId) return;
+    const tbody = document.querySelector('.slide-tickets .tickets-table tbody, .slide-prices .tickets-table tbody');
+    if (!tbody) return;
+    const catData = await fetchCategories(eventId, { useCache: false });
+    if (catData.error) return;
+    tbody.innerHTML = buildTicketTableRows(parseCategories(catData), eventId);
   }
 
   async function renderTicketsTableSlide(screen) {
@@ -290,32 +370,7 @@
 
     const categories = parseCategories(catData);
     const reservation = await renderReservationBlock(screen, eventSummary);
-
-    let rows = '';
-    if (categories.length > 0) {
-      rows = categories.map(cat => {
-        const available = categoryAvailable(cat);
-        const total = categoryTotalCapacity(cat);
-        const soldOut = available === 0;
-        if (soldOut) {
-          return `
-          <tr class="sold-out">
-            <td class="col-name">${escapeHtml(categoryName(cat))}</td>
-            <td colspan="3" class="col-sold-out">Ausverkauft</td>
-          </tr>`;
-        }
-        const lowAvail = isLowAvailability(available);
-        return `
-          <tr${lowAvail ? ' class="availability-low"' : ''}>
-            <td class="col-name">${escapeHtml(categoryName(cat))}</td>
-            <td class="col-available${lowAvail ? ' availability-low' : ''}">${escapeHtml(availabilityLabel(available))}</td>
-            <td class="col-total">${escapeHtml(capacityLabel(total))}</td>
-            <td class="col-price">${escapeHtml(categoryPrice(cat))}</td>
-          </tr>`;
-      }).join('');
-    } else {
-      rows = `<tr><td colspan="4" class="no-data">Keine Ticketkategorien für Event ${escapeHtml(eventId)}. Im Admin unter „API testen“ prüfen — ist Ticketverkauf für dieses Event aktiv?</td></tr>`;
-    }
+    const rows = buildTicketTableRows(categories, eventId);
 
     return `
       <div class="tickets-table-content">
@@ -428,7 +483,7 @@
     const screenId = screen.id;
     refreshTimer = setInterval(() => {
       if (currentScreen && currentScreen.id === screenId) {
-        renderSlide(currentScreen);
+        refreshTicketTableOnly(currentScreen);
       }
     }, refreshSeconds * 1000);
   }
