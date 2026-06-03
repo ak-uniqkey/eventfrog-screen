@@ -7,17 +7,22 @@ body {
   overflow: hidden;
   width: 100vw;
   height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* 16:9-Bühne: passt in den Viewport, bei anderen Seitenverhältnissen Letterboxing */
 #slideshow {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  aspect-ratio: 16 / 9;
   display: flex;
   flex-direction: column;
   background: #000;
+  container-type: size;
+  container-name: stage;
 }
 
 .site-header.hidden,
@@ -27,20 +32,20 @@ body {
 
 .site-header {
   flex: 0 0 auto;
-  min-height: 10vh;
+  min-height: 7cqh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
   align-items: center;
-  gap: 2vw;
-  padding: 1vh 2.5vw;
+  gap: 2cqw;
+  padding: 0.8cqh 2.5cqw;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   z-index: 20;
 }
 
 .header-logo-wrap {
   justify-self: start;
-  height: 7vh;
-  max-height: 72px;
+  height: 5.5cqh;
+  max-height: 64px;
   display: flex;
   align-items: center;
 }
@@ -98,8 +103,8 @@ body {
 
 .site-footer {
   flex: 0 0 auto;
-  min-height: 10vh;
-  padding: 1.5vh 2vw 2vh;
+  min-height: 7cqh;
+  padding: 1cqh 2cqw 1.2cqh;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   z-index: 20;
 }
@@ -109,9 +114,9 @@ body {
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: clamp(12px, 3vw, 48px);
-  height: 8vh;
-  max-height: 80px;
+  gap: clamp(12px, 3cqw, 48px);
+  height: 5.5cqh;
+  max-height: 64px;
 }
 
 .footer-logos img,
@@ -132,6 +137,14 @@ body {
   padding: 4%;
 }
 
+.slide.slide-tickets,
+.slide.slide-prices {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 2% 4% 2.5%;
+  overflow: hidden;
+}
+
 .empty-slide {
   color: #fff;
   text-align: center;
@@ -139,39 +152,54 @@ body {
 }
 
 .tickets-table-content {
-  width: 92%;
-  max-height: 88%;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  min-height: 0;
+}
+
+.tickets-table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 140, 0, 0.5) transparent;
 }
 
 .tickets-table-title {
-  font-size: 3.5vw;
+  flex: 0 0 auto;
+  font-size: 3.5cqw;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 2vh;
+  margin-bottom: 1cqh;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
 .tickets-event-date {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1.2vw;
-  margin-bottom: 1vh;
-  font-size: 3.25vw;
+  gap: 1.2cqw;
+  margin-bottom: 0.6cqh;
+  font-size: 2.8cqw;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .tickets-event-time {
+  flex: 0 0 auto;
   text-align: center;
-  font-size: 2.1vw;
+  font-size: 1.9cqw;
   font-weight: 500;
   opacity: 0.9;
-  margin: 0 0 2.5vh;
+  margin: 0 0 1cqh;
   letter-spacing: 0.04em;
 }
 
@@ -226,17 +254,17 @@ body {
 .tickets-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 2.4vw;
-  margin-bottom: 1vh;
+  font-size: 2.4cqw;
+  margin-bottom: 0;
 }
 
 .tickets-table th {
-  font-size: 1.9vw;
+  font-size: 1.7cqw;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   opacity: 0.75;
-  padding: 1.5vh 2%;
+  padding: 0.9cqh 2%;
   border-bottom: 2px solid rgba(255, 255, 255, 0.35);
   text-align: left;
 }
@@ -252,7 +280,7 @@ body {
 .tickets-table tbody tr.sold-out .col-sold-out {
   text-align: center;
   font-weight: 800;
-  font-size: 2.8vw;
+  font-size: 2.4cqw;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #ff3b30;
@@ -260,7 +288,7 @@ body {
 }
 
 .tickets-table td {
-  padding: 2vh 2%;
+  padding: 1.1cqh 2%;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   vertical-align: middle;
 }
@@ -268,7 +296,7 @@ body {
 .tickets-table .col-available {
   text-align: center;
   font-weight: 700;
-  font-size: 2.8vw;
+  font-size: 2.4cqw;
   color: #ffb347;
   text-shadow: 0 0 12px rgba(255, 140, 0, 0.35);
 }
@@ -293,25 +321,27 @@ body {
 .tickets-table .col-total {
   text-align: center;
   font-weight: 600;
-  font-size: 2.4vw;
+  font-size: 2.1cqw;
   opacity: 0.9;
 }
-.tickets-table .col-price { text-align: right; font-weight: 700; font-size: 2.6vw; }
-.tickets-table .no-data { text-align: center; opacity: 0.5; padding: 4vh; }
+.tickets-table .col-price { text-align: right; font-weight: 700; font-size: 2.3cqw; }
+.tickets-table .no-data { text-align: center; opacity: 0.5; padding: 3cqh; }
 
 .tickets-reservation {
-  margin-top: 5.5vh;
+  flex: 0 0 auto;
+  margin-top: 1.5cqh;
+  padding-top: 1cqh;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 4vw;
+  gap: 3cqw;
   width: 100%;
-  max-width: 92%;
+  max-width: 100%;
 }
 
 .tickets-reservation-text {
-  font-size: 3.4vw;
+  font-size: 2.8cqw;
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.03em;
@@ -319,7 +349,7 @@ body {
   text-align: left;
   white-space: pre-line;
   flex: 0 1 auto;
-  max-width: 42vw;
+  max-width: 38cqw;
 }
 
 .tickets-barcode-link {
@@ -339,17 +369,17 @@ body {
 
 .tickets-barcode-wrap {
   background: #fff;
-  padding: 1.2vh 1.2vw;
+  padding: 0.8cqh 0.8cqw;
   border-radius: 8px;
   line-height: 0;
 }
 
 .tickets-barcode {
   display: block;
-  width: 14vw;
-  height: 14vw;
-  min-width: 100px;
-  min-height: 100px;
+  width: min(12cqw, 11cqh);
+  height: min(12cqw, 11cqh);
+  min-width: 88px;
+  min-height: 88px;
   image-rendering: pixelated;
 }
 
@@ -425,8 +455,8 @@ body {
   justify-content: center;
   align-items: center;
   gap: 10px;
-  padding: 0.8vh 2vw 1vh;
-  min-height: 2.5vh;
+  padding: 0.6cqh 2cqw 0.8cqh;
+  min-height: 2cqh;
   z-index: 20;
 }
 

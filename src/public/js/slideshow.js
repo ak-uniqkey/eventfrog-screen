@@ -498,17 +498,19 @@
       <div class="tickets-table-content">
         ${renderEventDateHeader(eventSummary)}
         ${renderEventTimeText(screen)}
-        <table class="tickets-table">
-          <thead>
-            <tr>
-              <th>Kategorie</th>
-              <th>Frei</th>
-              <th>Kapazität</th>
-              <th>Preis</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
+        <div class="tickets-table-scroll">
+          <table class="tickets-table">
+            <thead>
+              <tr>
+                <th>Kategorie</th>
+                <th>Frei</th>
+                <th>Kapazität</th>
+                <th>Preis</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
         ${reservation}
       </div>`;
   }
