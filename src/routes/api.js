@@ -7,7 +7,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { fetchCategoriesForEvent, getEvent, mapEventSummary } = require('../eventfrog');
 const QRCode = require('qrcode');
-const { requireAuth, maskSettings, shouldUpdateApiKey } = require('../auth');
+const { requireAuth, maskSettings, publicSettings, shouldUpdateApiKey } = require('../auth');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -46,6 +46,27 @@ async function loadEventfrogSettings(eventIdFromQuery) {
 }
 
 // ---- Öffentlich (Slideshow) ----
+
+router.get('/display-settings', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT key, value FROM settings');
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    res.json(publicSettings(map));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/display-screens', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM screens WHERE active = true ORDER BY sort_order ASC'
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/eventfrog/event', async (req, res) => {
   try {

@@ -53,6 +53,9 @@
       titleEl.textContent = SETTINGS.header_title || '';
       titleEl.style.display = SETTINGS.header_title ? '' : 'none';
       clockEl.textContent = formatClock();
+    } else {
+      header.classList.add('hidden');
+      header.setAttribute('aria-hidden', 'true');
     }
 
     if (SETTINGS.footer_enabled) {
@@ -63,8 +66,56 @@
         footerWrap.innerHTML = logos.map(src =>
           `<img src="${src}" alt="" class="footer-logo" />`
         ).join('');
+      } else {
+        footer.classList.add('hidden');
+        footer.setAttribute('aria-hidden', 'true');
+        footerWrap.innerHTML = '';
       }
+    } else {
+      footer.classList.add('hidden');
+      footer.setAttribute('aria-hidden', 'true');
+      footerWrap.innerHTML = '';
     }
+
+    if (SETTINGS.show_title) {
+      document.title = SETTINGS.show_title;
+    }
+  }
+
+  let lastLayoutSnapshot = '';
+
+  function layoutSnapshot() {
+    return JSON.stringify({
+      show_title: SETTINGS.show_title,
+      refresh_interval: SETTINGS.refresh_interval,
+      header_enabled: SETTINGS.header_enabled,
+      header_title: SETTINGS.header_title,
+      header_logo: SETTINGS.header_logo,
+      footer_enabled: SETTINGS.footer_enabled,
+      footer_logos: SETTINGS.footer_logos,
+    });
+  }
+
+  async function pollDisplaySettings() {
+    try {
+      const r = await fetch('/api/display-settings');
+      if (!r.ok) return;
+      const next = await r.json();
+      const snap = JSON.stringify({
+        show_title: next.show_title,
+        refresh_interval: next.refresh_interval,
+        header_enabled: next.header_enabled,
+        header_title: next.header_title,
+        header_logo: next.header_logo,
+        footer_enabled: next.footer_enabled,
+        footer_logos: next.footer_logos,
+      });
+      if (snap === lastLayoutSnapshot) return;
+      lastLayoutSnapshot = snap;
+      Object.assign(SETTINGS, next);
+      initLayout();
+      startClock();
+    } catch { /* ignore */ }
   }
 
   let clockTimer = null;
@@ -78,13 +129,84 @@
     }, 1000);
   }
 
+  let lastScreensSnapshot = '';
+
+  function screensSnapshot(list) {
+    const rows = Array.isArray(list) ? list : [];
+    return JSON.stringify(rows.map((s) => ({
+      id: s.id,
+      type: s.type,
+      sort_order: s.sort_order,
+      duration: s.duration,
+      event_id: s.event_id,
+      text_content: s.text_content,
+      qr_url: s.qr_url,
+      background_color: s.background_color,
+      background_image: s.background_image,
+      text_color: s.text_color,
+      image_path: s.image_path,
+      updated_at: s.updated_at,
+    })));
+  }
+
+  function showNoScreens() {
+    clearTimeout(slideTimer);
+    clearRefreshTimer();
+    currentScreen = null;
+    const container = document.getElementById('slide-container');
+    if (container) {
+      container.innerHTML = '<div class="empty-slide"><h1>Keine Screens konfiguriert</h1></div>';
+    }
+    const ind = document.getElementById('slide-indicators');
+    if (ind) ind.innerHTML = '';
+  }
+
+  async function pollDisplayScreens() {
+    try {
+      const r = await fetch('/api/display-screens');
+      if (!r.ok) return;
+      const next = await r.json();
+      const snap = screensSnapshot(next);
+      if (snap === lastScreensSnapshot) return;
+      lastScreensSnapshot = snap;
+
+      const prevId = currentScreen?.id;
+      SCREENS = Array.isArray(next) ? next : [];
+
+      if (SCREENS.length === 0) {
+        showNoScreens();
+        return;
+      }
+
+      let newIndex = 0;
+      if (prevId != null) {
+        const idx = SCREENS.findIndex((s) => s.id === prevId);
+        if (idx >= 0) newIndex = idx;
+      }
+
+      buildIndicators();
+      await goTo(newIndex, { fromPoll: true });
+    } catch { /* ignore */ }
+  }
+
+  async function pollDisplayOnCycleComplete() {
+    await pollDisplaySettings();
+    await pollDisplayScreens();
+  }
+
+  function isSlideshowCycleComplete(prevIndex, nextIndex, requestedIndex) {
+    if (SCREENS.length === 0) return false;
+    const lastIdx = SCREENS.length - 1;
+    return prevIndex === lastIdx && nextIndex === 0 && requestedIndex > prevIndex;
+  }
+
+  lastLayoutSnapshot = layoutSnapshot();
+  lastScreensSnapshot = screensSnapshot(SCREENS);
   initLayout();
   startClock();
 
   if (!SCREENS || SCREENS.length === 0) {
-    document.getElementById('slide-container').innerHTML =
-      '<div class="empty-slide"><h1>Keine Screens konfiguriert</h1></div>';
-    return;
+    showNoScreens();
   }
 
   function buildIndicators() {
@@ -504,16 +626,27 @@
     });
   }
 
-  async function goTo(index) {
+  async function goTo(index, options = {}) {
+    if (SCREENS.length === 0) return;
+
     clearTimeout(slideTimer);
     clearRefreshTimer();
     const trip = ++goToToken;
-    currentIndex = ((index % SCREENS.length) + SCREENS.length) % SCREENS.length;
+    const prevIndex = currentIndex;
+    const nextIndex = ((index % SCREENS.length) + SCREENS.length) % SCREENS.length;
+    const cycleComplete = !options.fromPoll
+      && isSlideshowCycleComplete(prevIndex, nextIndex, index);
+
+    currentIndex = nextIndex;
     updateIndicators();
     const screen = SCREENS[currentIndex];
     currentScreen = screen;
     await renderSlide(screen);
     if (trip !== goToToken) return;
+
+    if (cycleComplete) {
+      void pollDisplayOnCycleComplete();
+    }
 
     startRefreshTimer(screen);
     const durationSec = Math.max(1, parseInt(screen.duration, 10) || 10);
@@ -524,8 +657,10 @@
     }, durationSec * 1000);
   }
 
-  buildIndicators();
-  goTo(0);
+  if (SCREENS.length > 0) {
+    buildIndicators();
+    goTo(0);
+  }
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowRight' || e.key === ' ') goTo((currentIndex + 1) % SCREENS.length);
