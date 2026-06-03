@@ -224,7 +224,7 @@
     if (!barcode) return '';
     return `
       <div class="tickets-reservation">
-        <p class="tickets-reservation-text">Reservieren Sie jetzt</p>
+        <p class="tickets-reservation-text">${escapeHtml('Reservieren Sie\njetzt online')}</p>
         <div class="tickets-barcode-wrap">
           <img src="${barcode}" class="tickets-barcode" alt="Barcode zur Reservierung" />
         </div>
@@ -241,6 +241,10 @@
   function availabilityLabel(n) {
     if (n === undefined || n === null) return '–';
     return String(n);
+  }
+
+  function isLowAvailability(n) {
+    return typeof n === 'number' && n > 0 && n <= 16;
   }
 
   function capacityLabel(n) {
@@ -300,10 +304,11 @@
             <td colspan="3" class="col-sold-out">Ausverkauft</td>
           </tr>`;
         }
+        const lowAvail = isLowAvailability(available);
         return `
-          <tr>
+          <tr${lowAvail ? ' class="availability-low"' : ''}>
             <td class="col-name">${escapeHtml(categoryName(cat))}</td>
-            <td class="col-available">${escapeHtml(availabilityLabel(available))}</td>
+            <td class="col-available${lowAvail ? ' availability-low' : ''}">${escapeHtml(availabilityLabel(available))}</td>
             <td class="col-total">${escapeHtml(capacityLabel(total))}</td>
             <td class="col-price">${escapeHtml(categoryPrice(cat))}</td>
           </tr>`;
