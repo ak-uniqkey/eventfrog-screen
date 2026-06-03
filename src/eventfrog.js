@@ -41,6 +41,50 @@ async function getEventCategories(apiKey, eventId) {
   return organizerGet(apiKey, `/events/${encodeURIComponent(eventId)}/ticketcategories`);
 }
 
+async function getTicketTransactionsPage(apiKey, eventId, page = 1, perPage = 100) {
+  const q = new URLSearchParams({
+    page: String(page),
+    perPage: String(perPage),
+  });
+  return organizerGet(
+    apiKey,
+    `/events/${encodeURIComponent(eventId)}/tickettransactions?${q.toString()}`
+  );
+}
+
+async function getAllTicketTransactions(apiKey, eventId) {
+  const perPage = 100;
+  let page = 1;
+  const transactions = [];
+  let total = Infinity;
+
+  while (transactions.length < total) {
+    const data = await getTicketTransactionsPage(apiKey, eventId, page, perPage);
+    const batch = Array.isArray(data.data) ? data.data : [];
+    transactions.push(...batch);
+    total = typeof data.totalNumberOfResources === 'number'
+      ? data.totalNumberOfResources
+      : transactions.length;
+    if (batch.length === 0 || batch.length < perPage) break;
+    page += 1;
+  }
+
+  return transactions;
+}
+
+function countActiveTicketsByCategory(transactions) {
+  const counts = {};
+  for (const tx of transactions) {
+    for (const ticket of tx.tickets || []) {
+      if (ticket.cancelled) continue;
+      const categoryId = ticket.categoryId;
+      if (categoryId === undefined || categoryId === null) continue;
+      counts[categoryId] = (counts[categoryId] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
 function pickLocalizedInfo(entity) {
   const list = entity?.localizedInfo || [];
   return list.find((l) => l.locale && String(l.locale).startsWith('de')) || list[0] || {};
@@ -156,7 +200,7 @@ function extractPriceCents(cat) {
   return undefined;
 }
 
-function extractAvailable(cat) {
+function extractAvailable(cat, soldByCategory = null) {
   const explicit = [
     cat.remainingNumberOfTickets,
     cat.availableNumberOfTickets,
@@ -174,6 +218,13 @@ function extractAvailable(cat) {
     return Math.max(0, total - sold);
   }
 
+  if (soldByCategory && cat.id != null && total !== undefined) {
+    const allocated = soldByCategory[cat.id];
+    if (allocated !== undefined) {
+      return Math.max(0, total - allocated);
+    }
+  }
+
   return undefined;
 }
 
@@ -182,13 +233,19 @@ function extractTotalCapacity(cat) {
   return v !== undefined && v !== null ? v : undefined;
 }
 
-function mapEventfrogCategory(cat) {
+function mapEventfrogCategory(cat, soldByCategory = null) {
   const loc = pickLocalizedInfo(cat);
   const price = extractPriceCents(cat);
+  const total = extractTotalCapacity(cat);
+  const allocated = (soldByCategory && cat.id != null)
+    ? soldByCategory[cat.id]
+    : undefined;
   return {
+    id: cat.id,
     name: loc.title || 'Kategorie',
-    available_capacity: extractAvailable(cat),
-    total_capacity: extractTotalCapacity(cat),
+    available_capacity: extractAvailable(cat, soldByCategory),
+    total_capacity: total,
+    sold_count: allocated,
     price,
     // priceText oft veraltet (z. B. „18 / 20 €“) — nur ohne berechneten Preis nutzen
     priceText: price != null ? null : (loc.priceText || null),
@@ -224,12 +281,25 @@ function parseCategories(data) {
   return [];
 }
 
-function normalizeCategories(list) {
-  return list.map(mapEventfrogCategory);
+function normalizeCategories(list, soldByCategory = null) {
+  return list.map((cat) => mapEventfrogCategory(cat, soldByCategory));
+}
+
+async function fetchSoldByCategory(apiKey, eventId) {
+  try {
+    const transactions = await getAllTicketTransactions(apiKey, eventId);
+    return countActiveTicketsByCategory(transactions);
+  } catch (err) {
+    console.warn('eventfrog tickettransactions:', err.message);
+    return null;
+  }
 }
 
 async function fetchCategoriesForEvent(apiKey, eventId) {
-  const ticketData = await getEventCategories(apiKey, eventId);
+  const [ticketData, soldByCategory] = await Promise.all([
+    getEventCategories(apiKey, eventId),
+    fetchSoldByCategory(apiKey, eventId),
+  ]);
   let rawList = parseCategories(ticketData);
 
   if (rawList.length === 0) {
@@ -242,14 +312,17 @@ async function fetchCategoriesForEvent(apiKey, eventId) {
   }
 
   return {
-    categories: normalizeCategories(rawList),
+    categories: normalizeCategories(rawList, soldByCategory),
     raw: ticketData,
+    sold_by_category: soldByCategory,
   };
 }
 
 module.exports = {
   getEvent,
   getEventCategories,
+  getAllTicketTransactions,
+  countActiveTicketsByCategory,
   fetchCategoriesForEvent,
   parseCategories,
   normalizeCategories,

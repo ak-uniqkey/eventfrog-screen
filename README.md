@@ -5,7 +5,7 @@ Webanwendung für einen Linux-Webserver mit zwei Ebenen: eine **öffentliche Vol
 ## Funktionen
 
 - **Slideshow** (`/`): Vollbild-Anzeige, automatischer Wechsel, Tastatursteuerung (Pfeiltasten, Leertaste, `F` für Fullscreen)
-- **Ticket-Tabelle**: Pro Screen eine Event-ID; Datum des Events (mit „heute“-Badge), Tabelle (Kategorie, frei, Kapazität, Preis), darunter QR-Barcode „Reservieren Sie jetzt“. Nach dem Eventdatum wird der Screen deaktiviert. Ausverkauft rot über Frei/Kapazität/Preis.
+- **Ticket-Tabelle**: Pro Screen eine Event-ID; Datum des Events (mit „heute“-Badge), Tabelle (Kategorie, frei, Kapazität, Preis). **Freie Plätze** = Kapazität minus verkaufte/reservierte Tickets aus der Organizer-API (`tickettransactions`). Darunter QR-Barcode „Reservieren Sie jetzt“. Nach dem Eventdatum wird der Screen deaktiviert.
 - **Auto-Refresh**: Live-Aktualisierung der Ticket-Screens (Intervall in Sekunden, konfigurierbar)
 - **Multi-Event**: Jedes Event über die Event-ID am jeweiligen Screen
 - **Admin** (`/admin`): Screens verwalten, Eventfrog-Anbindung, Uploads — nur nach Login

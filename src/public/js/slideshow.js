@@ -112,7 +112,16 @@
   }
 
   function categoryAvailable(cat) {
-    return cat.available_capacity ?? cat.availableCapacity
+    if (cat.available_capacity !== undefined && cat.available_capacity !== null) {
+      return cat.available_capacity;
+    }
+    const total = categoryTotalCapacity(cat);
+    const sold = cat.sold_count ?? cat.soldCount ?? cat.numberOfSoldTickets
+      ?? cat.soldTickets ?? cat.sold;
+    if (total !== undefined && sold !== undefined) {
+      return Math.max(0, total - sold);
+    }
+    return cat.availableCapacity
       ?? cat.remainingNumberOfTickets ?? cat.availableNumberOfTickets
       ?? cat.numberOfRemainingTickets ?? cat.remainingCapacity
       ?? cat.freeSeats ?? cat.available;

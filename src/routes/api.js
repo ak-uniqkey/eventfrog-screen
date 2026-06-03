@@ -95,11 +95,12 @@ router.get('/eventfrog/test', async (req, res) => {
     const cfg = await loadEventfrogSettings(req.query.event_id);
     if (cfg.error) return res.status(400).json({ ok: false, error: cfg.error });
     const { apiKey, eventId } = cfg;
-    const { categories, raw } = await fetchCategoriesForEvent(apiKey, eventId);
+    const { categories, raw, sold_by_category } = await fetchCategoriesForEvent(apiKey, eventId);
     res.json({
       ok: true,
       event_id: eventId,
       categories_count: categories.length,
+      sold_by_category,
       categories: categories.slice(0, 5),
       raw_type: Array.isArray(raw) ? 'array' : typeof raw,
       raw_keys: raw && typeof raw === 'object' && !Array.isArray(raw) ? Object.keys(raw) : [],
