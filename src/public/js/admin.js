@@ -134,9 +134,15 @@ function onTypeChange(type) {
       : 'Reservierungs-URL (Barcode, optional)';
   }
 
-  if (type === 'tickets' || type === 'prices') textLabel.textContent = 'Überschrift (optional)';
+  if (type === 'tickets' || type === 'prices') {
+    textLabel.textContent = 'Uhrzeit / Text (unter dem Datum)';
+    document.getElementById('f-text').placeholder = 'z. B. 17:00 – 23:00 Uhr';
+  }
   else if (type === 'qrcode') textLabel.textContent = 'QR Code Label';
-  else textLabel.textContent = 'Text Content';
+  else {
+    textLabel.textContent = 'Text Content';
+    document.getElementById('f-text').placeholder = 'Optional text to display';
+  }
 }
 
 // Color pickers

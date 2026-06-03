@@ -3,7 +3,8 @@
   let slideTimer = null;
   let refreshTimer = null;
   let currentScreen = null;
-  let currentSlideDeactivated = false;
+  let renderToken = 0;
+  let goToToken = 0;
 
   const refreshSeconds = Math.max(5, parseInt(SETTINGS.refresh_interval, 10) || 15);
 
@@ -189,6 +190,12 @@
       </div>`;
   }
 
+  function renderEventTimeText(screen) {
+    const timeText = (screen.text_content || '').trim();
+    if (!timeText) return '';
+    return `<p class="tickets-event-time">${escapeHtml(timeText)}</p>`;
+  }
+
   function renderEventEndedContent(eventSummary) {
     const dateLine = eventSummary?.dateLabel
       ? `<p class="event-ended-date">${escapeHtml(eventSummary.dateLabel)}</p>`
@@ -242,7 +249,6 @@
   async function renderTicketsTableSlide(screen) {
     const eventId = (screen.event_id || '').trim();
     if (!eventId) {
-      currentSlideDeactivated = false;
       return `
         <div class="tickets-table-content">
           <p class="tickets-table-msg">Keine Event-ID am Screen hinterlegt.</p>
@@ -251,7 +257,6 @@
 
     const eventSummary = await fetchEventSummary(eventId);
     if (eventSummary?.error) {
-      currentSlideDeactivated = false;
       return `
         <div class="tickets-table-content">
           <p class="tickets-table-msg">${escapeHtml(eventSummary.error)}</p>
@@ -259,11 +264,8 @@
     }
 
     if (eventSummary?.isPast) {
-      currentSlideDeactivated = true;
       return renderEventEndedContent(eventSummary);
     }
-
-    currentSlideDeactivated = false;
 
     const catData = await fetchCategories(eventId);
     if (catData.error) {
@@ -274,7 +276,6 @@
     }
 
     const categories = parseCategories(catData);
-    const title = screen.text_content || '';
     const reservation = await renderReservationBlock(screen, eventSummary);
 
     let rows = '';
@@ -304,8 +305,8 @@
 
     return `
       <div class="tickets-table-content">
-        ${title ? `<h1 class="tickets-table-title">${escapeHtml(title)}</h1>` : ''}
         ${renderEventDateHeader(eventSummary)}
+        ${renderEventTimeText(screen)}
         <table class="tickets-table">
           <thead>
             <tr>
@@ -372,28 +373,32 @@
   }
 
   async function renderSlide(screen) {
+    const token = ++renderToken;
     const container = document.getElementById('slide-container');
-    container.innerHTML = '';
-    currentSlideDeactivated = false;
+    if (!container) return;
+
+    container.replaceChildren();
     applySlideBackground(container, screen);
 
     const slide = document.createElement('div');
     slide.className = 'slide slide-' + screen.type;
     slide.style.color = screen.text_color || '#ffffff';
 
+    let html = '';
     if (isTicketSlide(screen)) {
-      slide.innerHTML = await renderTicketsTableSlide(screen);
+      html = await renderTicketsTableSlide(screen);
     } else if (screen.type === 'qrcode') {
-      slide.innerHTML = await renderQRSlide(screen);
-      container.appendChild(slide);
-      return;
+      html = await renderQRSlide(screen);
     } else if (screen.type === 'sponsor') {
-      slide.innerHTML = renderSponsorSlide(screen);
+      html = renderSponsorSlide(screen);
     } else {
-      slide.innerHTML = `<div class="slide-text">${escapeHtml(screen.text_content || '')}</div>`;
+      html = `<div class="slide-text">${escapeHtml(screen.text_content || '')}</div>`;
     }
 
-    container.appendChild(slide);
+    if (token !== renderToken) return;
+
+    slide.innerHTML = html;
+    container.replaceChildren(slide);
   }
 
   function clearRefreshTimer() {
@@ -406,9 +411,10 @@
   function startRefreshTimer(screen) {
     clearRefreshTimer();
     if (!screen || !isTicketSlide(screen)) return;
+    const screenId = screen.id;
     refreshTimer = setInterval(() => {
-      if (currentScreen && currentScreen.id === screen.id) {
-        renderSlide(screen);
+      if (currentScreen && currentScreen.id === screenId) {
+        renderSlide(currentScreen);
       }
     }, refreshSeconds * 1000);
   }
@@ -432,31 +438,21 @@
   async function goTo(index) {
     clearTimeout(slideTimer);
     clearRefreshTimer();
-    currentIndex = index;
+    const trip = ++goToToken;
+    currentIndex = ((index % SCREENS.length) + SCREENS.length) % SCREENS.length;
     updateIndicators();
     const screen = SCREENS[currentIndex];
     currentScreen = screen;
     await renderSlide(screen);
-
-    const slideshow = document.getElementById('slideshow');
-    if (slideshow) {
-      slideshow.classList.toggle('slide-deactivated', currentSlideDeactivated);
-    }
-
-    if (currentSlideDeactivated) {
-      const bar = document.getElementById('progress-bar');
-      if (bar) {
-        bar.style.transition = 'none';
-        bar.style.width = '0%';
-      }
-      return;
-    }
+    if (trip !== goToToken) return;
 
     startRefreshTimer(screen);
-    startProgress(screen.duration || 10);
+    const durationSec = Math.max(1, parseInt(screen.duration, 10) || 10);
+    startProgress(durationSec);
     slideTimer = setTimeout(() => {
-      goTo((currentIndex + 1) % SCREENS.length);
-    }, (screen.duration || 10) * 1000);
+      if (trip !== goToToken) return;
+      goTo(currentIndex + 1);
+    }, durationSec * 1000);
   }
 
   buildIndicators();

@@ -89,9 +89,11 @@ body {
   position: relative;
   overflow: hidden;
   background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+
+#slide-container > .slide {
+  position: absolute;
+  inset: 0;
 }
 
 .site-footer {
@@ -158,10 +160,19 @@ body {
   align-items: center;
   justify-content: center;
   gap: 1.2vw;
-  margin-bottom: 2.5vh;
-  font-size: 2.6vw;
+  margin-bottom: 1vh;
+  font-size: 3.25vw;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+.tickets-event-time {
+  text-align: center;
+  font-size: 2.1vw;
+  font-weight: 500;
+  opacity: 0.9;
+  margin: 0 0 2.5vh;
+  letter-spacing: 0.04em;
 }
 
 .event-date-today {
@@ -204,12 +215,6 @@ body {
   opacity: 0.65;
   max-width: 70%;
   margin: 0 auto;
-}
-
-#slideshow.slide-deactivated #progress-bar,
-#slideshow.slide-deactivated #slide-indicators {
-  opacity: 0.25;
-  pointer-events: none;
 }
 
 .tickets-table-msg {
