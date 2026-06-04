@@ -109,12 +109,13 @@
     const segment = parts.map((t) =>
       `<span class="ticker-item">${escapeHtml(t)}</span>`
     ).join('<span class="ticker-sep" aria-hidden="true"> *** </span>');
+    const loopSegment = `${segment}<span class="ticker-sep" aria-hidden="true"> *** </span>`;
     const duration = Math.max(18, Math.min(90, parts.join('').length * 0.35));
     return `
       <div class="ticker-marquee" style="--ticker-duration: ${duration}s">
         <div class="ticker-marquee-track">
-          <div class="ticker-marquee-content">${segment}</div>
-          <div class="ticker-marquee-content" aria-hidden="true">${segment}</div>
+          <div class="ticker-marquee-content">${loopSegment}</div>
+          <div class="ticker-marquee-content" aria-hidden="true">${loopSegment}</div>
         </div>
       </div>`;
   }
