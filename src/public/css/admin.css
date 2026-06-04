@@ -238,7 +238,7 @@ body {
 .drag-handle { cursor: grab; color: var(--text2); font-size: 1.1rem; }
 .drag-handle:active { cursor: grabbing; }
 .screen-name { font-weight: 500; }
-.actions { display: flex; gap: 0.4rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 /* Badges */
 .badge {

@@ -205,6 +205,21 @@ async function editScreen(id) {
   }
 }
 
+// ---- Duplicate Screen ----
+async function duplicateScreen(btn) {
+  const id = parseInt(btn.dataset.id, 10);
+  const screenName = btn.dataset.name;
+  try {
+    const r = await apiFetch(`/api/screens/${id}/duplicate`, { method: 'POST' });
+    if (!r.ok) throw new Error((await r.json()).error || 'Duplizieren fehlgeschlagen');
+    const copy = await r.json();
+    showToast(`„${screenName}“ dupliziert als „${copy.name}“`);
+    reloadScreens();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
 // ---- Delete Screen ----
 async function deleteScreen(btnOrId, name) {
   // Support both (element) and legacy (id, name) call signatures
@@ -256,6 +271,7 @@ async function reloadScreens() {
         </td>
         <td class="actions">
           <button class="btn btn-sm btn-secondary" onclick="editScreen(${s.id})">✏️ Edit</button>
+          <button class="btn btn-sm btn-secondary" data-id="${s.id}" data-name="${escHtml(s.name)}" onclick="duplicateScreen(this)" title="Screen duplizieren">📋 Duplizieren</button>
           <button class="btn btn-sm btn-danger" data-id="${s.id}" data-name="${escHtml(s.name)}" onclick="deleteScreen(this)">🗑</button>
         </td>
       </tr>`).join('');

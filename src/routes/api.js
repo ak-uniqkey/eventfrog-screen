@@ -30,6 +30,18 @@ const upload = multer({
   },
 });
 
+const UPLOADS_DIR = path.join(__dirname, '..', 'public', 'uploads');
+
+function copyUploadedImage(imagePath) {
+  if (!imagePath || !imagePath.startsWith('/uploads/')) return null;
+  const src = path.join(__dirname, '..', 'public', imagePath.replace(/^\//, ''));
+  if (!fs.existsSync(src)) return imagePath;
+  const ext = path.extname(src);
+  const destName = `${Date.now()}-${crypto.randomBytes(16).toString('hex')}${ext}`;
+  fs.copyFileSync(src, path.join(UPLOADS_DIR, destName));
+  return `/uploads/${destName}`;
+}
+
 async function loadEventfrogSettings(eventIdFromQuery) {
   const eventId = (eventIdFromQuery || '').trim();
   if (!eventId) {
@@ -238,6 +250,45 @@ router.put('/screens/:id', upload.single('image'), async (req, res) => {
        text_content !== undefined ? text_content : cur.text_content,
        text_color || cur.text_color, image_path, event_id !== undefined ? event_id : cur.event_id,
        qr_url !== undefined ? qr_url : cur.qr_url, id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/screens/:id/duplicate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await pool.query('SELECT * FROM screens WHERE id = $1', [id]);
+    if (existing.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    const src = existing.rows[0];
+
+    const { rows: maxOrder } = await pool.query(
+      'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM screens'
+    );
+    const sortOrder = maxOrder[0].next_order;
+    const copyName = `${src.name} (Kopie)`;
+    const image_path = copyUploadedImage(src.image_path);
+
+    const { rows } = await pool.query(
+      `INSERT INTO screens (name, type, sort_order, duration, active, background_color, background_image, text_content, text_color, image_path, event_id, qr_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [
+        copyName,
+        src.type,
+        sortOrder,
+        src.duration,
+        src.active,
+        src.background_color,
+        src.background_image,
+        src.text_content,
+        src.text_color,
+        image_path,
+        src.event_id,
+        src.qr_url,
+      ]
     );
     res.json(rows[0]);
   } catch (err) {

@@ -165,6 +165,7 @@
                       </td>
                       <td class="actions">
                         <button class="btn btn-sm btn-secondary" onclick="editScreen(<%= screen.id %>)">✏️ Edit</button>
+                        <button class="btn btn-sm btn-secondary" data-id="<%= screen.id %>" data-name="<%= screen.name.replace(/"/g, '&quot;') %>" onclick="duplicateScreen(this)" title="Screen duplizieren">📋 Duplizieren</button>
                         <button class="btn btn-sm btn-danger" data-id="<%= screen.id %>" data-name="<%= screen.name.replace(/"/g, '&quot;') %>" onclick="deleteScreen(this)">🗑</button>
                       </td>
                     </tr>
