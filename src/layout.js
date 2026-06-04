@@ -25,6 +25,14 @@ function isTruthy(value) {
   return value === true || value === 'true' || value === '1';
 }
 
+function parseTickerTexts(value) {
+  if (!value) return [];
+  return String(value)
+    .split(/\s*\*\*\*\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function getLayoutFromSettings(map) {
   return {
     header_enabled: isTruthy(map.header_enabled !== undefined ? map.header_enabled : 'true'),
@@ -32,6 +40,9 @@ function getLayoutFromSettings(map) {
     header_logo: map.header_logo || '',
     footer_enabled: isTruthy(map.footer_enabled !== undefined ? map.footer_enabled : 'true'),
     footer_logos: parseFooterLogos(map.footer_logos),
+    ticker_enabled: isTruthy(map.ticker_enabled),
+    ticker_texts: map.ticker_texts || '',
+    ticker_text_list: parseTickerTexts(map.ticker_texts),
   };
 }
 
@@ -53,6 +64,7 @@ module.exports = {
   MAX_FOOTER_LOGOS,
   ensureLayoutUploadDir,
   parseFooterLogos,
+  parseTickerTexts,
   getLayoutFromSettings,
   safeUnlink,
   upsertSetting,

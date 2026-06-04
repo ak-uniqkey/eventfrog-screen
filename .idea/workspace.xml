@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="52266c15-7e69-458f-8d47-f5b9930ddac2" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/src/auth.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/auth.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/layout.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/layout.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/public/css/admin.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/public/css/admin.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/public/css/slideshow.css" beforeDir="false" afterPath="$PROJECT_DIR$/src/public/css/slideshow.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/public/js/admin-layout.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/public/js/admin-layout.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/public/js/admin.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/public/js/admin.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/public/js/slideshow.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/public/js/slideshow.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/api.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/api.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/routes/layout.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/routes/layout.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/views/admin.ejs" beforeDir="false" afterPath="$PROJECT_DIR$/src/views/admin.ejs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/views/index.ejs" beforeDir="false" afterPath="$PROJECT_DIR$/src/views/index.ejs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 7
+}]]></component>
+  <component name="ProjectId" id="3EfcjCJwmyUn7rkMsAkvM872GOO" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/ak"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="52266c15-7e69-458f-8d47-f5b9930ddac2" name="Changes" comment="" />
+      <created>1780573198447</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1780573198447</updated>
+    </task>
+    <servers />
+  </component>
+</project>

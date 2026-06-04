@@ -29,11 +29,28 @@ document.getElementById('header_logo')?.addEventListener('change', (e) => {
   if (removeCb) removeCb.checked = false;
 });
 
+function onTickerEnabledChange() {
+  const enabled = document.getElementById('ticker_enabled')?.checked;
+  document.getElementById('field-layout-ticker')?.classList.toggle('hidden', !enabled);
+}
+
 async function saveLayout() {
+  const tickerOn = document.getElementById('ticker_enabled')?.checked;
+  if (tickerOn && typeof collectTickerTextsFromForm === 'function') {
+    if (collectTickerTextsFromForm().length === 0) {
+      showToast('Mindestens ein Laufband-Text oder Anzeige deaktivieren', 'error');
+      return;
+    }
+  }
+
   const formData = new FormData();
   formData.set('header_enabled', document.getElementById('header_enabled').checked ? 'true' : 'false');
   formData.set('footer_enabled', document.getElementById('footer_enabled').checked ? 'true' : 'false');
   formData.set('header_title', document.getElementById('header_title').value);
+  formData.set('ticker_enabled', tickerOn ? 'true' : 'false');
+  if (typeof serializeTickerTexts === 'function' && typeof collectTickerTextsFromForm === 'function') {
+    formData.set('ticker_texts', serializeTickerTexts(collectTickerTextsFromForm()));
+  }
 
   if (document.getElementById('remove_header_logo')?.checked) {
     formData.set('remove_header_logo', 'true');
@@ -67,3 +84,14 @@ async function saveLayout() {
 }
 
 updateFooterCountHint();
+
+(function initLayoutTickerList() {
+  const rawEl = document.getElementById('layout-ticker-raw');
+  if (!rawEl || typeof renderTickerTextList !== 'function' || typeof parseTickerTexts !== 'function') return;
+  let raw = rawEl.textContent || '';
+  try {
+    raw = JSON.parse(raw);
+  } catch { /* plain string */ }
+  const texts = parseTickerTexts(raw);
+  renderTickerTextList(texts.length ? texts : ['']);
+})();

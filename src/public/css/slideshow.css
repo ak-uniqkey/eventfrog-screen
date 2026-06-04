@@ -199,7 +199,7 @@ body {
   font-size: 1.9cqw;
   font-weight: 500;
   opacity: 0.9;
-  margin: 0 0 1cqh;
+  margin: 0 0 0.6cqh;
   letter-spacing: 0.04em;
 }
 
@@ -329,13 +329,13 @@ body {
 
 .tickets-reservation {
   flex: 0 0 auto;
-  margin-top: 1.5cqh;
-  padding-top: 1cqh;
+  margin-top: 0.5cqh;
+  padding-top: 0.25cqh;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 3cqw;
+  gap: 2.5cqw;
   width: 100%;
   max-width: 100%;
 }
@@ -376,10 +376,10 @@ body {
 
 .tickets-barcode {
   display: block;
-  width: min(12cqw, 11cqh);
-  height: min(12cqw, 11cqh);
-  min-width: 88px;
-  min-height: 88px;
+  width: min(15.5cqw, 14.5cqh);
+  height: min(15.5cqw, 14.5cqh);
+  min-width: 108px;
+  min-height: 108px;
   image-rendering: pixelated;
 }
 
@@ -410,6 +410,88 @@ body {
   font-size: 1.5vw;
   opacity: 0.6;
   word-break: break-all;
+}
+
+.site-ticker {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 5.5cqh;
+  min-height: 52px;
+  max-height: 72px;
+  background: #cc0000;
+  overflow: hidden;
+  z-index: 30;
+  border-top: 2px solid rgba(0, 0, 0, 0.25);
+}
+
+.site-ticker.hidden {
+  display: none !important;
+}
+
+#slideshow.has-ticker .slide-main {
+  min-height: 0;
+}
+
+.ticker-marquee {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.ticker-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: ticker-scroll var(--ticker-duration, 40s) linear infinite;
+  will-change: transform;
+}
+
+.ticker-marquee-content {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0;
+  padding-right: 3cqw;
+  font-size: clamp(1.1rem, 2.8cqw, 2.25rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: #ffffff;
+}
+
+.ticker-item {
+  padding: 0 0.15em;
+}
+
+.ticker-sep {
+  opacity: 0.85;
+  padding: 0 0.35em;
+}
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    max-width: 92%;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .ticker-marquee-content[aria-hidden="true"] {
+    display: none;
+  }
+  .ticker-marquee-content {
+    white-space: normal;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
 }
 
 .sponsor-content {

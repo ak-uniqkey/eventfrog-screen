@@ -93,7 +93,51 @@
       header_logo: SETTINGS.header_logo,
       footer_enabled: SETTINGS.footer_enabled,
       footer_logos: SETTINGS.footer_logos,
+      ticker_enabled: SETTINGS.ticker_enabled,
+      ticker_texts: SETTINGS.ticker_texts,
     });
+  }
+
+  function parseTickerTexts(raw) {
+    return String(raw || '')
+      .split(/\s*\*\*\*\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  function buildTickerMarqueeHtml(parts) {
+    const segment = parts.map((t) =>
+      `<span class="ticker-item">${escapeHtml(t)}</span>`
+    ).join('<span class="ticker-sep" aria-hidden="true"> *** </span>');
+    const duration = Math.max(18, Math.min(90, parts.join('').length * 0.35));
+    return `
+      <div class="ticker-marquee" style="--ticker-duration: ${duration}s">
+        <div class="ticker-marquee-track">
+          <div class="ticker-marquee-content">${segment}</div>
+          <div class="ticker-marquee-content" aria-hidden="true">${segment}</div>
+        </div>
+      </div>`;
+  }
+
+  function updateSiteTicker() {
+    const el = document.getElementById('site-ticker');
+    const root = document.getElementById('slideshow');
+    if (!el || !root) return;
+
+    const enabled = SETTINGS.ticker_enabled;
+    const parts = parseTickerTexts(SETTINGS.ticker_texts);
+    if (!enabled || parts.length === 0) {
+      el.classList.add('hidden');
+      el.setAttribute('aria-hidden', 'true');
+      root.classList.remove('has-ticker');
+      el.innerHTML = '';
+      return;
+    }
+
+    el.classList.remove('hidden');
+    el.setAttribute('aria-hidden', 'false');
+    root.classList.add('has-ticker');
+    el.innerHTML = buildTickerMarqueeHtml(parts);
   }
 
   async function pollDisplaySettings() {
@@ -109,11 +153,14 @@
         header_logo: next.header_logo,
         footer_enabled: next.footer_enabled,
         footer_logos: next.footer_logos,
+        ticker_enabled: next.ticker_enabled,
+        ticker_texts: next.ticker_texts,
       });
       if (snap === lastLayoutSnapshot) return;
       lastLayoutSnapshot = snap;
       Object.assign(SETTINGS, next);
       initLayout();
+      updateSiteTicker();
       startClock();
     } catch { /* ignore */ }
   }
@@ -203,6 +250,7 @@
   lastLayoutSnapshot = layoutSnapshot();
   lastScreensSnapshot = screensSnapshot(SCREENS);
   initLayout();
+  updateSiteTicker();
   startClock();
 
   if (!SCREENS || SCREENS.length === 0) {

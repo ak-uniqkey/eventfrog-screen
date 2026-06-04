@@ -254,6 +254,26 @@ body {
 .badge-prices { background: rgba(79, 142, 247, 0.2); color: #4f8ef7; }
 .badge-qrcode { background: rgba(108, 99, 255, 0.2); color: #a78bfa; }
 .badge-sponsor { background: rgba(243, 156, 18, 0.2); color: #f39c12; }
+.badge-ticker { background: rgba(231, 76, 60, 0.25); color: #e74c3c; }
+
+.ticker-texts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.ticker-text-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.ticker-text-row input {
+  flex: 1;
+}
+
+.ticker-add-btn { margin-top: 0.15rem; }
 
 /* Status dot */
 .status-dot {
@@ -286,6 +306,8 @@ body {
   padding: 1rem;
   backdrop-filter: blur(4px);
 }
+.hidden { display: none !important; }
+
 .modal-overlay.hidden { display: none; }
 .modal {
   background: var(--bg2);

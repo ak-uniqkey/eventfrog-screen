@@ -6,7 +6,7 @@ const { publicSettings } = require('../auth');
 router.get('/', async (req, res) => {
   try {
     const { rows: screens } = await pool.query(
-      'SELECT * FROM screens WHERE active = true ORDER BY sort_order ASC'
+      "SELECT * FROM screens WHERE active = true AND type <> 'ticker' ORDER BY sort_order ASC"
     );
     const { rows: settings } = await pool.query('SELECT key, value FROM settings');
     const settingsMap = publicSettings(Object.fromEntries(settings.map(s => [s.key, s.value])));

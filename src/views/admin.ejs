@@ -117,6 +117,24 @@
             <span class="hint" id="footer-count-hint"><%= layout.footer_logos.length %> / 8 Logos</span>
           </div>
 
+          <h3 class="layout-section-title">Laufband</h3>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="ticker_enabled" name="ticker_enabled" <%= layout.ticker_enabled ? 'checked' : '' %> onchange="onTickerEnabledChange()" />
+              <span>Laufband am unteren Bildschirmrand anzeigen</span>
+            </label>
+            <span class="hint">Roter Streifen, weisse Schrift — sichtbar auf allen Slides</span>
+          </div>
+          <div id="field-layout-ticker" class="<%= layout.ticker_enabled ? '' : 'hidden' %>">
+            <script type="application/json" id="layout-ticker-raw"><%- JSON.stringify(layout.ticker_texts || '') %></script>
+            <div class="form-group">
+              <label>Laufband-Texte</label>
+              <div id="ticker-texts-list" class="ticker-texts-list"></div>
+              <button type="button" class="btn btn-sm btn-secondary ticker-add-btn" onclick="addTickerTextRow()">+ Text hinzufügen</button>
+              <span class="hint">Mehrere Einträge werden mit *** getrennt im Laufband angezeigt</span>
+            </div>
+          </div>
+
           <div class="form-actions">
             <button type="button" class="btn btn-primary" onclick="saveLayout()">💾 Layout speichern</button>
           </div>
@@ -216,14 +234,14 @@
               <label>Duration (seconds)</label>
               <input type="number" id="f-duration" name="duration" value="10" min="1" max="300" />
             </div>
-            <div class="form-group">
+            <div class="form-group" id="field-colors">
               <label>Background Color</label>
               <div class="color-input-wrap">
                 <input type="color" id="f-bg-color" name="background_color" value="#000000" />
                 <span id="f-bg-color-val">#000000</span>
               </div>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="field-text-color">
               <label>Text Color</label>
               <div class="color-input-wrap">
                 <input type="color" id="f-text-color" name="text_color" value="#ffffff" />
@@ -232,12 +250,12 @@
             </div>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" id="field-bg-image">
             <label>Background Image (URL or upload)</label>
             <input type="text" id="f-bg-image" name="background_image" placeholder="https://... or leave blank" />
           </div>
 
-          <div class="form-group">
+          <div class="form-group" id="field-text-content">
             <label id="text-content-label">Text Content</label>
             <textarea id="f-text" name="text_content" rows="2" placeholder="Optional text to display"></textarea>
             <span class="hint" id="text-content-hint"></span>

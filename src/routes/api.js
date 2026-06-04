@@ -72,7 +72,7 @@ router.get('/display-settings', async (req, res) => {
 router.get('/display-screens', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT * FROM screens WHERE active = true ORDER BY sort_order ASC'
+      "SELECT * FROM screens WHERE active = true AND type <> 'ticker' ORDER BY sort_order ASC"
     );
     res.json(rows);
   } catch (err) {

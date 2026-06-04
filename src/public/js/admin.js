@@ -1,6 +1,59 @@
 // ---- State ----
 let editingId = null;
 
+const TICKER_SEP = ' *** ';
+
+function parseTickerTexts(raw) {
+  return String(raw || '')
+    .split(/\s*\*\*\*\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function serializeTickerTexts(texts) {
+  return texts.map((s) => s.trim()).filter(Boolean).join(TICKER_SEP);
+}
+
+function renderTickerTextList(texts) {
+  const list = document.getElementById('ticker-texts-list');
+  if (!list) return;
+  const items = texts.length > 0 ? texts : [''];
+  list.innerHTML = items.map((text, i) => `
+    <div class="ticker-text-row">
+      <input type="text" class="ticker-text-input" value="${escHtml(text)}" placeholder="z. B. Einlass ab 18:00 Uhr" data-index="${i}" />
+      <button type="button" class="btn btn-sm btn-danger" onclick="removeTickerTextRow(this)" title="Entfernen">✕</button>
+    </div>`).join('');
+}
+
+function addTickerTextRow() {
+  const list = document.getElementById('ticker-texts-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'ticker-text-row';
+  row.innerHTML = `
+    <input type="text" class="ticker-text-input" value="" placeholder="z. B. Einlass ab 18:00 Uhr" />
+    <button type="button" class="btn btn-sm btn-danger" onclick="removeTickerTextRow(this)" title="Entfernen">✕</button>`;
+  list.appendChild(row);
+  row.querySelector('input')?.focus();
+}
+
+function removeTickerTextRow(btn) {
+  const list = document.getElementById('ticker-texts-list');
+  const row = btn.closest('.ticker-text-row');
+  if (!list || !row) return;
+  if (list.querySelectorAll('.ticker-text-row').length <= 1) {
+    row.querySelector('input').value = '';
+    return;
+  }
+  row.remove();
+}
+
+function collectTickerTextsFromForm() {
+  return Array.from(document.querySelectorAll('.ticker-text-input'))
+    .map((el) => el.value.trim())
+    .filter(Boolean);
+}
+
 async function apiFetch(url, options = {}) {
   const r = await fetch(url, { credentials: 'same-origin', ...options });
   if (r.status === 401) {

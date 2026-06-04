@@ -45,6 +45,7 @@ const PUBLIC_SETTING_KEYS = [
   'show_title', 'refresh_interval',
   'header_enabled', 'header_title', 'header_logo',
   'footer_enabled', 'footer_logos',
+  'ticker_enabled', 'ticker_texts',
 ];
 
 function maskSettings(map) {
@@ -65,6 +66,8 @@ function publicSettings(map) {
   out.header_title = out.header_title || '';
   out.header_logo = out.header_logo || '';
   out.footer_logos = parseFooterLogos(out.footer_logos);
+  out.ticker_enabled = isTruthy(out.ticker_enabled);
+  out.ticker_texts = out.ticker_texts || '';
   return out;
 }
 

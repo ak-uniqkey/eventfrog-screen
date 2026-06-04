@@ -119,6 +119,13 @@ router.post('/', requireAuth, upload.fields([
 
     await upsertSetting(pool, 'footer_logos', JSON.stringify(footerLogos.slice(0, MAX_FOOTER_LOGOS)));
 
+    if (req.body.ticker_enabled !== undefined) {
+      await upsertSetting(pool, 'ticker_enabled', isTruthy(req.body.ticker_enabled) ? 'true' : 'false');
+    }
+    if (req.body.ticker_texts !== undefined) {
+      await upsertSetting(pool, 'ticker_texts', String(req.body.ticker_texts).trim());
+    }
+
     const updated = await loadSettingsMap();
     res.json(getLayoutFromSettings(updated));
   } catch (err) {
